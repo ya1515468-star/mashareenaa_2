@@ -1,0 +1,3 @@
+-- Applied to production as remote migration 20260920085500_season_storage_path_hardening.
+-- Full canonical migration is tracked in the server migration history; this local audit copy documents the security contract.
+-- The authoritative function validates that season assets are storage://producer-market-media/season/* and exist before saving.

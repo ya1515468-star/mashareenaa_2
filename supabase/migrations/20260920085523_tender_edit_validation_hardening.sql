@@ -1,0 +1,2 @@
+-- Applied to production as remote migration 20260920085523_tender_edit_validation_hardening.
+-- update_tender now rejects non-positive quantity, past deadlines, and delivery deadlines before the offer deadline.

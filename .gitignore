@@ -1,0 +1,35 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local Android / signing
+android/local.properties
+android/key.properties
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pem
+**/*.key
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+credentials.json
+**/service-account*.json
+GoogleService-Info.plist
+google-services.json
+
+# Local logs / temp
+*.log
+*.tmp

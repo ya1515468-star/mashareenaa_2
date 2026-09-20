@@ -15,7 +15,7 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "
 
 android {
     namespace = "com.mashareena.app"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -42,8 +42,6 @@ android {
 
     buildTypes {
         release {
-            // Supply a real release keystore through your CI/build environment.
-            // The source is intentionally not shipped with credentials.
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

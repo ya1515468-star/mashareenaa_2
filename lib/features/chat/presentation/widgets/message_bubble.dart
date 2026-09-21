@@ -288,7 +288,7 @@ class MessageBubble extends ConsumerWidget {
                     ServerChatInlineMessage(
                       uid: message.senderUid,
                       roomId: roomId,
-                      fallbackName: effectiveSenderName,
+                      fallbackName: effectiveSenderName ?? 'عضو',
                       text: message.text,
                       // كانت p.textPrimary دائمًا لرسائلي هنا، متجاهلة لون
                       // الرسالة المخصَّص (myMessageColor) كليًا — والويدجت

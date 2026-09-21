@@ -87,7 +87,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      return SingleChildScrollView(
+                      SingleChildScrollView(
                         child: Column(
                           children: [
                             // الغلاف العلوي + الصورة الشخصية فوقه متراكبة، ثم رمز
@@ -546,14 +546,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ),
                           ],
                         ),
-                      );,
+                      ),
                       ProducerMarketProfileTab(uid: profile.uid),
                     ],
                   ),
                 ),
               ],
             ),
-          )
+          );
         },
       ),
     );

@@ -1,717 +1,538 @@
-import '../../../../core/data/supabase_document_compat.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../store/domain/big_store_catalog.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../store/domain/entities/store_item_entity.dart';
-import '../../../store/domain/usecases/store_usecases.dart';
-import '../../../store/presentation/widgets/store_preview.dart';
-
-/// Compatibility enum retained because StoreFeaturesTab imports it.
-enum StoreFeatureType { glow, frame, background }
-
 class PointsStorePage extends StatefulWidget {
   const PointsStorePage({super.key});
-
   @override
   State<PointsStorePage> createState() => _PointsStorePageState();
 }
 
-class _PointsStorePageState extends State<PointsStorePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-  late final Future<Map<String, BigStoreProduct>> _catalogFuture;
-  bool _isPlatformOwner = false;
+class _PointsStorePageState extends State<PointsStorePage> {
+  final _uuid = const Uuid();
+  bool loading = true;
+  bool manager = false;
+  List<Map<String, dynamic>> packages = const [];
+  Object? error;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 5, vsync: this);
-    _catalogFuture = _loadCatalog();
-    _loadOwnerState();
+    _load();
   }
 
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-
-  Future<void> _loadOwnerState() async {
+  Future<void> _load() async {
     try {
-      final owner = await Supabase.instance.client.rpc('is_my_platform_owner');
-      if (mounted) setState(() => _isPlatformOwner = owner == true);
-    } catch (_) {
-      if (mounted) setState(() => _isPlatformOwner = false);
+      final db = Supabase.instance.client;
+      final rows = await db
+          .from('currency_packages')
+          .select('id,package_type,title,description,amount,bonus_amount,price_minor_units,price_currency,image_url,icon_key,enabled,featured,sort_order,updated_at')
+          .order('sort_order');
+      final access = await db.rpc('is_my_platform_owner');
+      if (!mounted) return;
+      setState(() {
+        packages = List<Map<String, dynamic>>.from(rows);
+        manager = access == true;
+        loading = false;
+        error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = e;
+      });
     }
   }
 
-  Future<Map<String, BigStoreProduct>> _loadCatalog() async {
-    final catalogResult = await sl<ListStoreCatalogUseCase>().call();
+  String _friendly(Object e) => e
+      .toString()
+      .replaceFirst('PostgrestException(message: ', '')
+      .replaceFirst(RegExp(r', code:.*'), '')
+      .replaceAll('Exception: ', '');
 
-    return catalogResult.fold(
-      (failure) => throw Exception(
-        'تعذّر تحميل كتالوج المتجر من الخادم: ${failure.message}',
-      ),
-      (items) {
-        final result = <String, BigStoreProduct>{};
-
-        for (final item in items) {
-          final section = switch (item.category) {
-            StoreItemCategory.currency => 'currency',
-            StoreItemCategory.usernameGlow => 'glow',
-            StoreItemCategory.avatarFrame => 'frame',
-            StoreItemCategory.animatedBackground => 'background',
-            StoreItemCategory.membership => 'membership',
-            StoreItemCategory.particleEffect => 'background',
-            StoreItemCategory.usernameBackground => 'background',
-          };
-
-          final asset = item.assetUrl?.trim();
-
-          if (asset == null || asset.isEmpty) {
-            throw Exception(
-              'عنصر المتجر ${item.id} لا يملك asset_url صالحًا.',
-            );
-          }
-
-          final sku = item.sku.trim().isEmpty ? item.id : item.sku.trim();
-
-          result[item.id] = BigStoreProduct(
-            id: item.id,
-            sku: sku,
-            section: section,
-            nameAr: item.nameAr,
-            pricePoints: item.pricePoints,
-            priceGems: item.priceGems ?? 0,
-            assetUrl: asset,
-            rarity: item.rarity,
-            featured: item.isFeatured,
-          );
-        }
-
-        return result;
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('MASHAREENA DIGITAL WORLD'),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(98),
-            child: Column(
-              children: [
-                const _StoreIntroBar(),
-                TabBar(
-                  controller: _tabs,
-                  isScrollable: true,
-                  tabs: const [
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/currency/currency_01.gif'),
-                        text: 'النقاط والجواهر'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset: 'assets/store_gifs/glow/glow_01.gif'),
-                        text: 'التوهجات'),
-                    Tab(icon: Icon(Icons.crop_square_rounded), text: 'الإطارات'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/background/background_01.gif'),
-                        text: 'الخلفيات'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/membership/membership_01.gif'),
-                        text: 'الميزات والعضويات'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: FutureBuilder<Map<String, BigStoreProduct>>(
-          future: _catalogFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final catalog = snapshot.data ?? const <String, BigStoreProduct>{};
-
-            return HeroMode(
-              enabled: false,
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  _SectionGrid(
-                    products: _products(catalog, 'currency'),
-                    title: ' النقاط والجواهر',
-                    sectionAsset: 'assets/store_gifs/currency/currency_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'glow'),
-                    title: '50 توهج ',
-                    sectionAsset: 'assets/store_gifs/glow/glow_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'frame'),
-                    title: 'إطارات GIF من الخادم',
-                    sectionAsset: 'assets/store_gifs/glow/glow_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'background'),
-                    title: '50 خلفية ',
-                    sectionAsset:
-                        'assets/store_gifs/background/background_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _MembershipSection(
-                    products: _products(catalog, 'membership'),
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  List<BigStoreProduct> _products(
-    Map<String, BigStoreProduct> catalog,
-    String section,
-  ) {
-    final items = catalog.values
-        .where((product) => product.section == section)
-        .toList(growable: false);
-
-    return items;
-  }
-}
-
-class _StoreTabIcon extends StatelessWidget {
-  final String asset;
-
-  const _StoreTabIcon({required this.asset});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: StoreGifPreview(
-        assetPath: asset,
-        alt: 'Mashareena  store section',
-        interactionPrompt: false,
-      ),
-    );
-  }
-}
-
-class _StoreIntroBar extends StatelessWidget {
-  const _StoreIntroBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF15071F), Color(0xFF651A91)],
-        ),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'كل عناصر المتجر  • 250 منتجًا • معاينة تفاعلية • شراء خادمي',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionGrid extends StatelessWidget {
-  final List<BigStoreProduct> products;
-  final String title;
-  final String sectionAsset;
-  final bool isPlatformOwner;
-
-  const _SectionGrid({
-    required this.products,
-    required this.title,
-    required this.sectionAsset,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 1400
-        ? 6
-        : width >= 1000
-            ? 5
-            : width >= 720
-                ? 4
-                : 2;
-
-    if (products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.crop_square_rounded, size: 60, color: Colors.white30),
-              const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              const Text('لا توجد إطارات محلية. الإطارات الجديدة تُرفع من مالك المنصة كملفات GIF إلى الخادم.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white60)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0E0A18), Color(0xFF32124D)],
-              ),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  height: 68,
-                  width: 68,
-                  child: StoreGifPreview(
-                    assetPath: sectionAsset,
-                    alt: title,
-                    interactionPrompt: false,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 28),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ProductCard(
-                product: products[index],
-                isPlatformOwner: isPlatformOwner,
-              ),
-              childCount: products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.70,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MembershipSection extends StatelessWidget {
-  final List<BigStoreProduct> products;
-  final bool isPlatformOwner;
-
-  const _MembershipSection({
-    required this.products,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        const SliverToBoxAdapter(child: _MembershipPolicyBanner()),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 28),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ProductCard(
-                product: products[index],
-                isPlatformOwner: isPlatformOwner,
-              ),
-              childCount: products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.sizeOf(context).width >= 900 ? 4 : 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.70,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MembershipPolicyBanner extends StatelessWidget {
-  const _MembershipPolicyBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF17100A), Color(0xFF6A4312)],
-        ),
-      ),
-      child: const Text(
-        'العضويات المدفوعة متاحة لجميع المستخدمين. الأسعار يحددها الخادم. DRAGON/مالك المنصة مستثنى من الخصم عند الشراء والإهداء فقط، ولا يحصل باقي المستخدمين على استثناء مالي من العميل.',
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: Colors.white,
-          height: 1.5,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductCard extends StatefulWidget {
-  final BigStoreProduct product;
-  final bool isPlatformOwner;
-
-  const _ProductCard({
-    required this.product,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  State<_ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<_ProductCard> {
-  bool _busy = false;
-
-  Future<bool> _confirmPurchase({required String title, required String detail, String action = 'شراء'}) async {
-    if (!mounted) return false;
-    return await showDialog<bool>(
+  Future<void> _purchase(Map<String, dynamic> package) async {
+    final ok = await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(detail),
+          builder: (ctx) => AlertDialog(
+            title: const Text('تأكيد الشراء'),
+            content: Text(
+              "شراء ${package['title'] ?? 'الباقة'} مقابل ${package['price_minor_units'] ?? 0} من الرصيد.",
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(action)),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('شراء'),
+              ),
             ],
           ),
-        ) ?? false;
-  }
+        ) ??
+        false;
+    if (!ok || !mounted) return;
 
-  Future<void> _purchase() async {
-    if (_busy) return;
-
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user == null) {
+    try {
+      await Supabase.instance.client.rpc(
+        'purchase_currency_package',
+        params: {
+          'p_package_id': package['id'],
+          'p_request_id': _uuid.v4(),
+        },
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('جلسة المستخدم غير موجودة.'),
-        ),
-      );
-      return;
-    }
-
-    if (widget.product.section == 'membership') {
-      await _purchaseMembership();
-      return;
-    }
-
-    final confirmed = await _confirmPurchase(
-      title: 'تأكيد الشراء',
-      detail: 'سيتم شراء «${widget.product.nameAr}» مقابل ${widget.product.pricePoints} نقطة وحفظ العملية على الخادم. هل تريد المتابعة؟',
-    );
-    if (!confirmed) return;
-
-    setState(() => _busy = true);
-
-    try {
-      final category = switch (widget.product.section) {
-        'frame' => StoreItemCategory.avatarFrame,
-        'glow' => StoreItemCategory.usernameGlow,
-        'background' => StoreItemCategory.animatedBackground,
-        'currency' => StoreItemCategory.currency,
-        _ => throw StateError(
-            'قسم متجر غير مدعوم: ${widget.product.section}',
-          ),
-      };
-
-      final item = StoreItemEntity(
-        id: widget.product.id,
-        category: category,
-        nameAr: widget.product.nameAr,
-        pricePoints: widget.product.pricePoints,
-        priceGems: widget.product.priceGems,
-        colors: const [],
-        enabled: true,
-        assetUrl: widget.product.assetUrl,
-        rarity: widget.product.rarity,
-        isFeatured: widget.product.featured,
-        sku: widget.product.sku,
-        assetType: 'gif',
-        previewAsset: widget.product.assetUrl,
-      );
-
-      final result = await sl<PurchaseStoreItemUseCase>().call(
-        uid: user.id,
-        item: item,
-      );
-
-      if (!mounted) return;
-
-      result.fold(
-        (failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(failure.message)),
-          );
-        },
-        (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم شراء العنصر ✓'),
-            ),
-          );
-        },
+        const SnackBar(content: Text('تم الشراء وتحديث الرصيد.')),
       );
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('لم يكتمل الشراء: $e'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_friendly(e))));
     }
   }
 
-  Future<void> _purchaseMembership() async {
-    if (_busy) return;
-    final confirmed = await _confirmPurchase(
-      title: 'تأكيد الاشتراك',
-      detail: 'سيتم شراء «${widget.product.nameAr}» وتثبيت العضوية عبر الخادم. هل تريد المتابعة؟',
-      action: 'تأكيد',
+  Future<void> _editPackage([Map<String, dynamic>? row]) async {
+    final draft = await showDialog<_PackageDraft>(
+      context: context,
+      builder: (_) => _PackageEditor(initial: row),
     );
-    if (!confirmed) return;
-
-    setState(() => _busy = true);
+    if (draft == null || !mounted) return;
 
     try {
-      final callable = SupabaseFunctionsCompat.instance.httpsCallable(
-        'purchaseMembership',
+      await Supabase.instance.client.rpc(
+        'admin_upsert_currency_package',
+        params: {
+          'p_id': draft.id,
+          'p_package_type': draft.type,
+          'p_title': draft.title,
+          'p_description': draft.description,
+          'p_amount': draft.amount,
+          'p_bonus_amount': draft.bonus,
+          'p_price_minor_units': draft.price,
+          'p_price_currency': 'sham_cash',
+          'p_image_url': draft.imageUrl,
+          'p_icon_key': draft.iconKey,
+          'p_enabled': draft.enabled,
+          'p_featured': draft.featured,
+          'p_sort_order': draft.sortOrder,
+        },
       );
-
-      await callable.call({
-        'tierId': widget.product.membershipTier,
-        'requestId': const Uuid().v4(),
-      });
-
+      await _load();
+    } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تأكيد العملية من الخادم.'),
-        ),
-      );
-    } on SupabaseFunctionException catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'لم تكتمل عملية العضوية.',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_friendly(e))));
     }
   }
 
-  Future<void> _gift() async {
-    final controller = TextEditingController();
-    final target = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('إهداء العضوية من DRAGON'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'UID المستلم'),
+  Future<void> _toggle(Map<String, dynamic> row) async {
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_set_currency_package_enabled',
+        params: {
+          'p_id': row['id'],
+          'p_enabled': row['enabled'] != true,
+        },
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_friendly(e))));
+    }
+  }
+
+  Widget _packageCard(Map<String, dynamic> p) {
+    final isPoints = p['package_type'] == 'points';
+    final image = p['image_url']?.toString() ?? '';
+    final amount = int.tryParse(p['amount']?.toString() ?? '') ?? 0;
+    final bonus = int.tryParse(p['bonus_amount']?.toString() ?? '') ?? 0;
+    final price = int.tryParse(p['price_minor_units']?.toString() ?? '') ?? 0;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: (isPoints ? Colors.amber : Colors.lightBlueAccent)
+                    .withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: image.startsWith('http')
+                  ? Image.network(image, fit: BoxFit.cover)
+                  : Icon(
+                      isPoints ? Icons.stars_rounded : Icons.diamond_rounded,
+                      size: 36,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    p['title']?.toString() ?? 'باقة',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    '${isPoints ? 'نقاط' : 'جواهر'}: ${amount + bonus}'
+                    '${bonus > 0 ? ' (+$bonus)' : ''}',
+                  ),
+                  Text(
+                    "السعر: ${price} ${p['price_currency'] ?? 'sham_cash'}",
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  if ((p['description']?.toString() ?? '').trim().isNotEmpty)
+                    Text(
+                      p['description'].toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(color: Colors.white60, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (manager)
+              Column(
+                children: [
+                  IconButton(
+                    onPressed: () => _editPackage(p),
+                    icon: const Icon(Icons.edit_rounded),
+                  ),
+                  IconButton(
+                    onPressed: () => _toggle(p),
+                    icon: Icon(
+                      p['enabled'] == true
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_rounded,
+                    ),
+                  ),
+                ],
+              )
+            else
+              FilledButton.tonal(
+                onPressed: () => _purchase(p),
+                child: const Text('شراء'),
+              ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('إهداء'),
-          ),
-        ],
       ),
     );
-    controller.dispose();
-    if (target == null || target.isEmpty || !mounted) return;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final points =
+        packages.where((p) => p['package_type'] == 'points').toList();
+    final gems =
+        packages.where((p) => p['package_type'] == 'gems').toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('باقات النقاط والجواهر'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          if (manager)
+            IconButton(
+              onPressed: () => _editPackage(),
+              icon: const Icon(Icons.add_circle_outline_rounded),
+            ),
+        ],
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : error != null
+              ? Center(child: Text('تعذر تحميل الباقات: ${error}'))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(14),
+                    children: [
+                      if (points.isNotEmpty) ...[
+                        const Text(
+                          'باقات النقاط',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...points.map(_packageCard),
+                        const SizedBox(height: 18),
+                      ],
+                      if (gems.isNotEmpty) ...[
+                        const Text(
+                          'باقات الجواهر',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...gems.map(_packageCard),
+                      ],
+                      if (points.isEmpty && gems.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 60),
+                          child: Center(
+                            child: Text('لا توجد باقات متاحة حاليًا.'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+      floatingActionButton: manager
+          ? FloatingActionButton.extended(
+              onPressed: () => _editPackage(),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('باقة جديدة'),
+            )
+          : null,
+    );
+  }
+}
+
+class _PackageDraft {
+  final String id;
+  final String type;
+  final String title;
+  final String description;
+  final String iconKey;
+  final int amount;
+  final int bonus;
+  final int price;
+  final int sortOrder;
+  final String? imageUrl;
+  final bool enabled;
+  final bool featured;
+
+  const _PackageDraft({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.description,
+    required this.amount,
+    required this.bonus,
+    required this.price,
+    required this.sortOrder,
+    required this.imageUrl,
+    required this.iconKey,
+    required this.enabled,
+    required this.featured,
+  });
+}
+
+class _PackageEditor extends StatefulWidget {
+  final Map<String, dynamic>? initial;
+  const _PackageEditor({this.initial});
+
+  @override
+  State<_PackageEditor> createState() => _PackageEditorState();
+}
+
+class _PackageEditorState extends State<_PackageEditor> {
+  late final id =
+      TextEditingController(text: widget.initial?['id']?.toString() ?? '');
+  late final title = TextEditingController(
+      text: widget.initial?['title']?.toString() ?? '');
+  late final description = TextEditingController(
+      text: widget.initial?['description']?.toString() ?? '');
+  late final amount = TextEditingController(
+      text: widget.initial?['amount']?.toString() ?? '1000');
+  late final bonus = TextEditingController(
+      text: widget.initial?['bonus_amount']?.toString() ?? '0');
+  late final price = TextEditingController(
+      text: widget.initial?['price_minor_units']?.toString() ?? '100');
+  late final sort = TextEditingController(
+      text: widget.initial?['sort_order']?.toString() ?? '100');
+  late final icon = TextEditingController(
+      text: widget.initial?['icon_key']?.toString() ?? 'currency');
+  late final image = TextEditingController(
+      text: widget.initial?['image_url']?.toString() ?? '');
+
+  late String type =
+      widget.initial?['package_type']?.toString() ?? 'points';
+  late bool enabled = widget.initial?['enabled'] != false;
+  late bool featured = widget.initial?['featured'] == true;
+
+  @override
+  void dispose() {
+    for (final c in [
+      id, title, description, amount, bonus, price, sort, icon, image
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _upload() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+    );
+    if (picked == null || picked.files.isEmpty || !mounted) return;
+
+    final file = picked.files.single;
+    final bytes = file.bytes ?? await file.xFile.readAsBytes();
+    if (bytes.isEmpty || bytes.length > 6 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الصورة فارغة أو تتجاوز 6MB.')),
+      );
+      return;
+    }
+
+    final ext = (file.extension ?? 'png').toLowerCase();
+    final path = 'packages/${const Uuid().v4()}.$ext';
+    final storage =
+        Supabase.instance.client.storage.from('currency-package-media');
     try {
-      final callable = SupabaseFunctionsCompat.instance
-          .httpsCallable('adminGrantMembershipTier');
-      await callable.call({
-        'targetUid': target,
-        'tierId': widget.product.membershipTier,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إهداء العضوية مجانًا من DRAGON.')),
+      await storage.uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(
+          upsert: false,
+          contentType: ext == 'png'
+              ? 'image/png'
+              : ext == 'webp'
+                  ? 'image/webp'
+                  : 'image/jpeg',
+        ),
       );
-    } on SupabaseFunctionException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'تعذر الإهداء.')),
-      );
+      setState(() => image.text = storage.getPublicUrl(path));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.product;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF251035), Color(0xFF0F0B15)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        border: Border.all(color: const Color(0x554A2769)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(5),
-              child: ProductGifViewer(
-                assetPath: p.assetUrl,
-                productName: p.nameAr,
+    return AlertDialog(
+      title: Text(widget.initial == null ? 'إضافة باقة' : 'تعديل الباقة'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: id,
+              enabled: widget.initial == null,
+              decoration: const InputDecoration(labelText: 'معرّف الباقة'),
+            ),
+            DropdownButtonFormField<String>(
+              value: type,
+              items: const [
+                DropdownMenuItem(value: 'points', child: Text('نقاط')),
+                DropdownMenuItem(value: 'gems', child: Text('جواهر')),
+              ],
+              onChanged: (v) => setState(() => type = v ?? type),
+              decoration: const InputDecoration(labelText: 'نوع الباقة'),
+            ),
+            TextField(
+              controller: title,
+              decoration: const InputDecoration(labelText: 'العنوان'),
+            ),
+            TextField(
+              controller: description,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'الوصف'),
+            ),
+            TextField(
+              controller: amount,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: type == 'points' ? 'عدد النقاط' : 'عدد الجواهر',
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-            child: Text(
-              p.nameAr,
-              textAlign: TextAlign.center,
+            TextField(
+              controller: bonus,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'إضافي'),
+            ),
+            TextField(
+              controller: price,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'السعر بالرصيد'),
+            ),
+            TextField(
+              controller: sort,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'الترتيب'),
+            ),
+            TextField(
+              controller: icon,
+              decoration: const InputDecoration(labelText: 'رمز داخلي'),
+            ),
+            TextField(
+              controller: image,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+              decoration: const InputDecoration(labelText: 'رابط صورة الرمز'),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                onPressed: _upload,
+                icon: const Icon(Icons.upload_file_rounded),
+                label: const Text('رفع صورة من الهاتف'),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text(
-              p.section == 'membership'
-                  ? 'عضوية ${p.membershipTier ?? 'premium'} — السعر من الخادم'
-                  : '${p.pricePoints} نقطة',
-              style: const TextStyle(
-                color: Color(0xFFFFD43B),
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
+            SwitchListTile(
+              value: featured,
+              onChanged: (v) => setState(() => featured = v),
+              title: const Text('مميزة'),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _busy ? null : _purchase,
-                child: _busy
-                    ? const SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('شراء'),
-              ),
+            SwitchListTile(
+              value: enabled,
+              onChanged: (v) => setState(() => enabled = v),
+              title: const Text('مفعلة'),
             ),
-          ),
-          if (p.section == 'membership' && widget.isPlatformOwner)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _busy || p.membershipTier == null ? null : _gift,
-                  icon: const Icon(Icons.card_giftcard, size: 16),
-                  label: const Text('إهداء مجانًا من DRAGON'),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final draft = _PackageDraft(
+              id: id.text.trim(),
+              type: type,
+              title: title.text.trim(),
+              description: description.text.trim(),
+              amount: int.tryParse(amount.text) ?? 0,
+              bonus: int.tryParse(bonus.text) ?? 0,
+              price: int.tryParse(price.text) ?? 0,
+              sortOrder: int.tryParse(sort.text) ?? 0,
+              imageUrl: image.text.trim().isEmpty ? null : image.text.trim(),
+              iconKey: icon.text.trim(),
+              enabled: enabled,
+              featured: featured,
+            );
+            Navigator.pop(context, draft);
+          },
+          child: const Text('حفظ'),
+        ),
+      ],
     );
   }
 }

@@ -19,6 +19,8 @@ import 'admin_chat_badges_tab.dart';
 import 'admin_user_titles_tab.dart';
 import 'name_animation_admin_tab.dart';
 import 'dragon_control_tab.dart';
+import 'garment_services_admin_page.dart';
+import 'platform_service_access_admin_page.dart';
 
 /// لوحة الإدارة — يجب ألا يصل إليها المستخدم إطلاقًا إلا عبر
 /// [PermissionGate] الذي يغلّف زر الوصول إليها (انظر HomeDashboardPage)؛
@@ -38,10 +40,23 @@ class AdminDashboardPage extends ConsumerWidget {
         ),
       ),
       child: DefaultTabController(
-        length: 17,
+        length: 19,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('لوحة الإدارة'),
+            actions: [
+              IconButton(
+                tooltip: 'بث المنصة',
+                icon: const Icon(Icons.campaign_outlined),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const AlertDialog(
+                    title: Text('بث المنصة'),
+                    content: SizedBox(width: 520, height: 285, child: AdminBroadcastTab()),
+                  ),
+                ),
+              ),
+            ],
             bottom: const TabBar(
               isScrollable: true,
               tabs: [
@@ -61,7 +76,8 @@ class AdminDashboardPage extends ConsumerWidget {
                 Tab(text: 'شارة العضو'),
                 Tab(text: 'ألقاب المستخدمين'),
                 Tab(text: 'حيوانات فوق الاسم'),
-                Tab(icon: Icon(Icons.home_repair_service_outlined), text: 'إدارة الورش'),
+                Tab(icon: Icon(Icons.checkroom_outlined), text: 'خدمات الألبسة'),
+                Tab(icon: Icon(Icons.admin_panel_settings_outlined), text: 'صلاحيات الخدمات'),
               ],
             ),
           ),
@@ -84,6 +100,8 @@ class AdminDashboardPage extends ConsumerWidget {
               AdminUserTitlesTab(),
               NameAnimationAdminTab(),
               ProducerMarketAdminPage(),
+              GarmentServicesAdminPage(),
+              PlatformServiceAccessAdminPage(),
             ],
           ),
         ),

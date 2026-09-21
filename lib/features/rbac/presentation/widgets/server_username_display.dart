@@ -72,14 +72,14 @@ class ServerUsernameDisplay extends ConsumerWidget {
         // num?" الذي يفشل صامتًا إن وصلت القيمة كنص (شائع عبر PostgREST)،
         // فيسقط اللون المخصَّص دائمًا رغم حفظه بشكل صحيح على الخادم.
         final usernameColor = int.tryParse(identity['username_color']?.toString() ?? '');
-        final storedFontSize = ((identity['username_font_size'] as num?)?.toDouble() ??
+        final storedFontSize = (double.tryParse(identity['username_font_size']?.toString() ?? '') ??
                 fallbackFontSize ??
                 12).clamp(8.0, 34.0).toDouble();
         final fontSize = (storedFontSize * sizeMultiplier).clamp(6.0, 34.0).toDouble();
 
         final status = _text(identity['status_text']);
         final statusColor = int.tryParse(identity['status_color']?.toString() ?? '');
-        final statusFontSize = ((identity['status_font_size'] as num?)?.toDouble() ?? 12.5).clamp(9.0, 22.0).toDouble();
+        final statusFontSize = (double.tryParse(identity['status_font_size']?.toString() ?? '') ?? 12.5).clamp(9.0, 22.0).toDouble();
         final statusBold = identity['status_bold'] == true;
         final statusItalic = identity['status_italic'] == true;
 
@@ -111,7 +111,7 @@ class ServerUsernameDisplay extends ConsumerWidget {
             backgroundMode: _text(identity['username_background_mode']),
             backgroundColor1: _text(identity['username_background_color1']),
             backgroundColor2: _text(identity['username_background_color2']),
-            backgroundOpacity: ((identity['username_background_opacity'] as num?)?.toDouble() ?? .82).clamp(0.0, 1.0).toDouble(),
+            backgroundOpacity: (double.tryParse(identity['username_background_opacity']?.toString() ?? '') ?? .82).clamp(0.0, 1.0).toDouble(),
             externalEffect: _text(identity['username_background_external_effect']),
             fontFamily: localArabicFontFamily(_text(identity['username_font_family']) ?? 'system_default'),
             templateKey: _text(identity['username_template_key']),

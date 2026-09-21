@@ -124,7 +124,7 @@ class HomeDashboardPage extends ConsumerWidget {
                 ),
                 QuickLinkCard(
                   icon: Icons.factory_outlined,
-                  label: 'الورش',
+                  label: 'خدمات الألبسة',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const GarmentHubPage())),
                 ),
@@ -136,7 +136,7 @@ class HomeDashboardPage extends ConsumerWidget {
                 ),
                 QuickLinkCard(
                   icon: Icons.shopping_bag_outlined,
-                  label: 'متجر النقاط',
+                  label: 'باقات النقاط والجواهر',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const PointsStorePage())),
                 ),

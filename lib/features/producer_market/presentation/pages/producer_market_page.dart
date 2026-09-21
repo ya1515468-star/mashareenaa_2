@@ -13,6 +13,8 @@ import '../../../store/presentation/widgets/visual_effect_config.dart';
 import '../../../store/presentation/widgets/visual_effect_host.dart';
 import '../../data/producer_market_repository.dart';
 import 'producer_market_admin_page.dart';
+import '../../../garment_hub/presentation/pages/garment_service_ad_page.dart';
+import '../../../rbac/presentation/widgets/server_username_display.dart';
 
 class ProducerMarketPage extends ConsumerStatefulWidget {
   final bool isActive;
@@ -31,6 +33,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   Map<String, dynamic> quota = {};
   bool loading = true;
   bool owner = false;
+  bool serviceManager = false;
   List<Map<String, dynamic>> garmentServices = [];
   final Map<int, VideoPlayerController> controllers = {};
   final Map<int, Future<VideoPlayerController>> controllerLoads = {};
@@ -144,7 +147,9 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
 
     try {
       quota = await repo.reelQuota();
+      final access = await Supabase.instance.client.rpc('has_platform_service_access', params: {'p_service_key': 'producer_market'});
       owner = quota['unlimited'] == true;
+      serviceManager = access == true;
     } catch (_) {}
 
     try {
@@ -272,7 +277,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                 top: MediaQuery.paddingOf(context).top + 10,
                 right: 10,
                 child: Row(children: [
-                  if (owner)
+                  if (owner || serviceManager)
                     IconButton.filledTonal(
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProducerMarketAdminPage())).then((_) => _load()),
                       icon: const Icon(Icons.tune_rounded),
@@ -330,7 +335,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'خدمات الورش والألبسة',
+                    'خدمات الألبسة',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
@@ -338,17 +343,17 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                   ),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'المصدر الخادمي الفعلي — كل الخدمات النشطة تظهر هنا.',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(sheetContext).push(MaterialPageRoute(builder: (_) => const GarmentServiceAdPage())),
+                    icon: const Icon(Icons.add_business_outlined),
+                    label: const Text('إضافة إعلان خدمة'),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
@@ -419,7 +424,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   Future<void> _share(int i) async {
     try {
       final url = await repo.mediaUrl(kind: 'reel', id: reels[i]['id'].toString(), path: reels[i]['video_url']?.toString());
-      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من الورش في مشاريعنا:\n$url'));
+      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من سوق الألبسة:\n$url'));
       await repo.interact(reels[i]['id'].toString(), 'share');
     } catch (e) {
       _snack(_friendly(e));
@@ -935,4 +940,4 @@ class _ReelPageState extends State<_ReelPage> {
 
 class _ActionButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback onTap; final Color? color; const _ActionButton({required this.icon, required this.label, required this.onTap, this.color}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 9), child: Column(children: [IconButton.filledTonal(onPressed: onTap, icon: Icon(icon, color: color, size: 23)), Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])); }
 class _Pill extends StatelessWidget { final IconData icon; final String text; const _Pill({required this.icon, required this.text}); @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white12)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 12), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11))])); }
-class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('الورش', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }
+class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('الورش', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات المنتجات والخدمات في قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }

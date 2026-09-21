@@ -12,10 +12,6 @@ final _errorsProvider =
   return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
-/// Proactive self-inspection of the database. Unlike the error log (which
-/// only records what already failed for a user), this actively hunts for
-/// defects — broken column references, duplicate overloads, missing grants,
-/// RLS gaps — before anyone runs into them.
 final _diagnosticsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final rows = await Supabase.instance.client.rpc('run_system_diagnostics');
@@ -163,6 +159,7 @@ ${e['details'] ?? '—'}
     try {
       await Supabase.instance.client.rpc('admin_resolve_client_error',
           params: {'p_id': id, 'p_resolved': resolved});
+      if (!mounted) return;
       ref.invalidate(_errorsProvider);
     } catch (e) {
       if (mounted) {
@@ -178,8 +175,9 @@ ${e['details'] ?? '—'}
         'admin_set_platform_incident_status',
         params: {'p_id': id, 'p_status': status},
       );
+      if (!mounted) return;
       ref.invalidate(_incidentsProvider);
-      if (mounted) {
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم تحديث حالة الحادثة إلى $status ✓')),
         );
@@ -199,8 +197,9 @@ ${e['details'] ?? '—'}
         'admin_set_security_alert_state',
         params: {'p_id': id, 'p_state': state},
       );
+      if (!mounted) return;
       ref.invalidate(_securityAlertsProvider);
-      if (mounted) {
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم تحديث التنبيه الأمني إلى $state ✓')),
         );
@@ -218,9 +217,10 @@ ${e['details'] ?? '—'}
     try {
       await Supabase.instance.client.rpc('admin_set_feature_flag',
           params: {'p_flag_key': key, 'p_enabled': enabled});
+      if (!mounted) return;
       ref.invalidate(_flagsRawProvider);
       ref.invalidate(featureFlagsProvider);
-      if (mounted) {
+
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(enabled ? 'تم تفعيل الميزة ✓' : 'تم تعطيل الميزة ✓'),
           backgroundColor: Colors.green.shade700,
@@ -275,10 +275,7 @@ ${e['details'] ?? '—'}
           // ---------------- Feature switches ----------------
           const Text('مفاتيح إيقاف الميزات',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-          const Text(
-            'أوقف أي ميزة معطوبة فورًا دون إصدار نسخة جديدة.',
-            style: TextStyle(fontSize: 11, color: Colors.white60),
-          ),
+
           const SizedBox(height: 6),
           flagsAsync.when(
             loading: () => const Padding(
@@ -319,10 +316,7 @@ ${e['details'] ?? '—'}
               icon: const Icon(Icons.play_circle_outline, size: 20),
             ),
           ]),
-          const Text(
-            'يفتّش النظام بنفسه عن أعطال لم يصادفها أحد بعد.',
-            style: TextStyle(fontSize: 11, color: Colors.white60),
-          ),
+
           const SizedBox(height: 6),
           ref.watch(_diagnosticsProvider).when(
                 loading: () => const Padding(
@@ -496,10 +490,7 @@ ${e['details'] ?? '—'}
           children: [
             const Text('مركز المراقبة الخادمي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
             const SizedBox(height: 3),
-            const Text(
-              'الأخطاء، الحوادث، إشارات الاختراق وقواعد الإصلاح الآمن تُجمع من الخادم في سطح واحد.',
-              style: TextStyle(fontSize: 10.5, color: Colors.white54, height: 1.45),
-            ),
+
             const SizedBox(height: 10),
             if (incidentsAsync.isLoading || alertsAsync.isLoading || rulesAsync.isLoading)
               const LinearProgressIndicator(minHeight: 2),
@@ -653,7 +644,9 @@ ${e['details'] ?? '—'}
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              'الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
+              'المستخدم: ${(e['last_user_display_name'] ?? e['last_user_username'] ?? 'غير معروف').toString()}'
+              '  •  ${e['last_user_username'] != null ? '@${e['last_user_username']}' : ''}'
+              '  •  الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
               '${e['platform'] ?? '—'}  •  مستخدمون: ${e['affected_users'] ?? 1}',
               style: const TextStyle(fontSize: 10, color: Colors.white54),
             ),

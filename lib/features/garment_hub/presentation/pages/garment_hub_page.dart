@@ -31,6 +31,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       final result = await Future.wait([
         repo.garmentServiceCatalog(),
         repo.garmentPublishedServices(),
+        Supabase.instance.client.rpc('has_platform_service_access', params: {'p_service_key': 'garment_market'}),
         Supabase.instance.client
             .from('garment_businesses')
             .select(

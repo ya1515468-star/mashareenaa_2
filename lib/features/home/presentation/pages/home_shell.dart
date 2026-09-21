@@ -7,6 +7,7 @@ import '../../../calls/presentation/pages/active_call_page.dart';
 import '../../../calls/presentation/providers/call_provider.dart';
 import 'home_dashboard_page.dart';
 import '../../../chat/presentation/pages/chat_lobby_page.dart';
+import '../../../chat/presentation/pages/chat_rooms_page.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../marketplace/presentation/pages/marketplace_page.dart';
 import '../../../producer_market/presentation/pages/producer_market_page.dart';
@@ -167,10 +168,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
-  int get _producerMarketIndex => _isOwner ? 3 : 2;
+  int get _producerMarketIndex => _isOwner ? 4 : 3;
 
   List<Widget> get _pages => [
         _chatEntryPage(),
+        const ChatRoomsPage(),
         if (_isOwner) const ErrorMonitorPage(),
         const HomeDashboardPage(),
         ProducerMarketPage(isActive: _index == _producerMarketIndex),
@@ -253,13 +255,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         items: [
           const BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined), label: 'الشات'),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.meeting_room_outlined), label: 'الغرف'),
           if (_isOwner)
             const BottomNavigationBarItem(
                 icon: Icon(Icons.monitor_heart_outlined), label: 'المراقبة'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined), label: 'المنصة'),
           const BottomNavigationBarItem(
-              icon: Icon(Icons.movie_creation_outlined), label: 'الورش'),
+              icon: Icon(Icons.movie_creation_outlined), label: 'سوق الألبسة'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.storefront_outlined), label: 'المتجر'),
         ],

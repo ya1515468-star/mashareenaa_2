@@ -39,11 +39,17 @@ class ProducerMarketRepository {
 
   Future<Map<String, String>> profiles(List<String> ids) async {
     if (ids.isEmpty) return {};
-    final rows = await _supabase.from('profiles').select('id,display_name,username,avatar_url').inFilter('id', ids);
+    final rows = await _supabase.rpc(
+      'get_producer_reel_owners',
+      params: {'p_user_ids': ids},
+    );
     final result = <String, String>{};
-    for (final row in rows) {
-      final name = (row['username'] ?? row['display_name'] ?? 'منتج أزياء').toString().trim();
-      result[row['id'].toString()] = name;
+    for (final row in List<Map<String, dynamic>>.from(rows)) {
+      final name = (row['display_name'] ?? row['username'] ?? 'منتج أزياء')
+          .toString()
+          .trim();
+      result[row['id'].toString()] =
+          name.isEmpty ? 'منتج أزياء' : name;
     }
     return result;
   }

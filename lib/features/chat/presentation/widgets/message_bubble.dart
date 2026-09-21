@@ -8,7 +8,7 @@ import 'emoji_picker_sheet.dart';
 import 'chat_media_content.dart';
 import 'reply_3d_anchor.dart';
 import '../../../../core/widgets/dynamic_avatar_frame.dart';
-import 'chat_mention_badge.dart';
+import '../../../vip/presentation/widgets/vip_favorite_button.dart';
 
 /// فقاعة الرسالة — مُعاد تصميمها بأسلوب مضغوط (صورة مصغّرة + اسم
 /// ملوَّن + رسالة، بتباعد أقل) مطابقًا للنمط البصري لتطبيقات
@@ -168,6 +168,24 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
+  IconData _statusIcon() {
+    switch (message.status) {
+      case MessageStatus.sending:
+        return Icons.schedule;
+      case MessageStatus.sent:
+        return Icons.check;
+      case MessageStatus.delivered:
+      case MessageStatus.seen:
+        return Icons.done_all;
+      case MessageStatus.failed:
+        return Icons.error_outline;
+      case MessageStatus.edited:
+        return Icons.check;
+      case MessageStatus.deleted:
+        return Icons.block;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
@@ -244,7 +262,7 @@ class MessageBubble extends ConsumerWidget {
                     ServerChatInlineMessage(
                       uid: message.senderUid,
                       roomId: roomId,
-                      fallbackName: effectiveSenderName ?? 'عضو',
+                      fallbackName: effectiveSenderName,
                       text: message.text,
                       // كانت p.textPrimary دائمًا لرسائلي هنا، متجاهلة لون
                       // الرسالة المخصَّص (myMessageColor) كليًا — والويدجت

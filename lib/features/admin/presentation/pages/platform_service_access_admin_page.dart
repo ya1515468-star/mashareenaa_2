@@ -48,7 +48,7 @@ class _PlatformServiceAccessAdminPageState extends State<PlatformServiceAccessAd
     if(loading)return const Center(child:CircularProgressIndicator());
     if(!owner)return const Center(child:Text('صلاحيات الخدمات للمالك فقط.'));
     return ListView(padding:const EdgeInsets.all(14),children:[
-      DropdownButtonFormField<String>(value:service,items:[for(final s in services)DropdownMenuItem(value:s['key']!,child:Text(s['name']!))],onChanged:(v)=>setState(()=>service=v??service),decoration:const InputDecoration(labelText:'الخدمة')),
+      DropdownButtonFormField<String>(initialValue: service,items:[for(final s in services)DropdownMenuItem(value:s['key']!,child:Text(s['name']!))],onChanged:(v)=>setState(()=>service=v??service),decoration:const InputDecoration(labelText:'الخدمة')),
       const SizedBox(height:8),
       Row(children:[Expanded(child:TextField(controller:query,onSubmitted:(_)=>_search(),decoration:const InputDecoration(hintText:'اسم المستخدم أو اسم الحساب'))),const SizedBox(width:8),FilledButton(onPressed:_search,child:const Text('بحث'))]),
       const SizedBox(height:8),

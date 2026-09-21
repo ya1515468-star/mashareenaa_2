@@ -83,7 +83,7 @@ class _GarmentServicesAdminPageState extends State<GarmentServicesAdminPage> {
       await Supabase.instance.client.rpc('service_admin_upsert_garment_service_catalog',params:{
         'p_service_key':key.text.trim(),'p_sector_key':sector.text.trim(),'p_name_ar':name.text.trim(),'p_description_ar':desc.text.trim(),'p_icon_key':icon.text.trim(),'p_is_active':active,'p_sort_order':int.tryParse(order.text)??0});
       await _load();
-    }finally{for(final c in [key,sector,name,desc,icon,order])c.dispose();}
+    } finally { for (final c in [key, sector, name, desc, icon, order]) { c.dispose(); } }
   }
   Future<void> _status(String id,String status) async {
     try{await Supabase.instance.client.rpc('admin_set_garment_service_ad_status',params:{'p_ad_id':id,'p_status':status});await _load();}

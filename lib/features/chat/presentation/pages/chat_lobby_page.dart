@@ -1584,9 +1584,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                     for (final e in globalRows.reversed) {
                       final type = e['event_type']?.toString();
                       final roomId = e['room_id']?.toString();
-                      final expires =
-                          DateTime.tryParse(e['expires_at']?.toString() ?? '');
-                      if (type == 'welcome_bot' && roomId != _roomId) continue;
+                        if (type == 'welcome_bot' && roomId != _roomId) continue;
                       if (_isGlobalEventLive(e, now: now)) {
                         latestGlobal = e;
                         break;
@@ -1597,8 +1595,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                     final type = e['event_type']?.toString();
                     final created =
                         DateTime.tryParse(e['created_at']?.toString() ?? '');
-                    final expires =
-                        DateTime.tryParse(e['expires_at']?.toString() ?? '');
                     return (type == 'gift' ||
                             type == 'points_transfer' ||
                             type == 'gems_transfer') &&
@@ -3331,9 +3327,7 @@ class _GlobalEventOverlayState extends State<_GlobalEventOverlay> {
       'owner_entry',
       'user_joined',
     }.contains(type);
-    final clientExpiry = created == null
-        ? null
-        : created.toLocal().add(const Duration(seconds: 15));
+    final clientExpiry = created?.toLocal().add(const Duration(seconds: 15));
     final effectiveExpiry = transient && clientExpiry != null
         ? (storedExpiry == null || clientExpiry.isBefore(storedExpiry)
             ? clientExpiry

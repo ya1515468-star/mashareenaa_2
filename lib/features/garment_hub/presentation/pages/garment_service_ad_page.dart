@@ -179,7 +179,7 @@ class _GarmentServiceAdPageState extends State<GarmentServiceAdPage> {
         padding: const EdgeInsets.all(16),
         children: [
           DropdownButtonFormField<String>(
-            value: serviceKey,
+            initialValue: serviceKey,
             items: services
                 .map(
                   (s) => DropdownMenuItem(
@@ -285,7 +285,7 @@ class _GarmentServiceAdPageState extends State<GarmentServiceAdPage> {
             label: const Text('رفع صور من الهاتف'),
           ),
           DropdownButtonFormField<String>(
-            value: publicationCurrency,
+            initialValue: publicationCurrency,
             items: const [
               DropdownMenuItem(
                 value: 'points',

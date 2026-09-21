@@ -154,6 +154,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
     final amount = int.tryParse(p['amount']?.toString() ?? '') ?? 0;
     final bonus = int.tryParse(p['bonus_amount']?.toString() ?? '') ?? 0;
     final price = int.tryParse(p['price_minor_units']?.toString() ?? '') ?? 0;
+    final priceCurrency = p['price_currency']?.toString() ?? 'sham_cash';
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -189,11 +190,11 @@ class _PointsStorePageState extends State<PointsStorePage> {
                     ),
                   ),
                   Text(
-                    '${isPoints ? 'نقاط' : 'جواهر'}: ${amount + bonus}'
+                    '${isPoints ? 'نقاط' : 'جواهر'}: $amount'
                     '${bonus > 0 ? ' (+$bonus)' : ''}',
                   ),
                   Text(
-                    "السعر: ${price} ${p['price_currency'] ?? 'sham_cash'}",
+                    'السعر: $price $priceCurrency',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   if ((p['description']?.toString() ?? '').trim().isNotEmpty)
@@ -261,7 +262,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(child: Text('تعذر تحميل الباقات: ${error}'))
+              ? Center(child: Text('تعذر تحميل الباقات: $error'))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
@@ -441,7 +442,7 @@ class _PackageEditorState extends State<_PackageEditor> {
               decoration: const InputDecoration(labelText: 'معرّف الباقة'),
             ),
             DropdownButtonFormField<String>(
-              value: type,
+              initialValue: type,
               items: const [
                 DropdownMenuItem(value: 'points', child: Text('نقاط')),
                 DropdownMenuItem(value: 'gems', child: Text('جواهر')),

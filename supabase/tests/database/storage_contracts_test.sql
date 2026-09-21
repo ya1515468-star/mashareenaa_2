@@ -1,4 +1,6 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public, pg_catalog;
 select plan(42);
 select ok(exists (select 1 from storage.buckets where id = 'avatars'), 'avatars bucket exists');
 select ok(exists (select 1 from storage.buckets where id = 'avatars' and coalesce(file_size_limit,0) > 0), 'avatars has a positive size limit');

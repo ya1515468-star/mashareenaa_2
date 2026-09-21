@@ -266,8 +266,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                                 ),
                               ),
                               subtitle: Text(
-                                (item['business_name']?.toString() ?? '') + ' • ' +
-                                    _sectorName(item['sector_key']?.toString() ?? ''),
+                                '${item['business_name']?.toString() ?? ''} • ${_sectorName(item['sector_key']?.toString() ?? '')}',
                               ),
                               trailing: item['price_minor_units'] == null
                                   ? null
@@ -320,8 +319,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                                 ),
                               ),
                               subtitle: Text(
-                                (business['city']?.toString() ?? '') + ' • ' +
-                                    _sectorName(business['sector_key']?.toString() ?? ''),
+                                '${business['city']?.toString() ?? ''} • ${_sectorName(business['sector_key']?.toString() ?? '')}',
                               ),
                               trailing: business['is_verified'] == true
                                   ? const Icon(

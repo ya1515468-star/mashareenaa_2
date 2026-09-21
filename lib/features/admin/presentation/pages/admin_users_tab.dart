@@ -95,8 +95,8 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.stretch,
                                           children: [
-                                            if (address.isNotEmpty) Text('العنوان: ' + address),
-                                            if (ip.isNotEmpty) Text(ipAt.isEmpty ? 'IP: ' + ip : 'IP: ' + ip + ' • ' + ipAt),
+                                            if (address.isNotEmpty) Text('العنوان: $address'),
+                                            if (ip.isNotEmpty) Text(ipAt.isEmpty ? 'IP: $ip' : 'IP: $ip • $ipAt'),
                                           ],
                                         ),
                                       );
@@ -149,9 +149,7 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                                             context)
                                                         .showSnackBar(
                                                       SnackBar(
-                                                        content: Text(
-                                                            'تعذر تغيير الصلاحية: ' +
-                                                                e.toString()),
+                                                        content: Text('تعذر تغيير الصلاحية: $e'),
                                                       ),
                                                     );
                                                   }

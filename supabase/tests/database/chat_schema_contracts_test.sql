@@ -1,4 +1,6 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public, pg_catalog;
 select plan(16);
 select ok(to_regclass('public.chat_rooms') is not null, 'chat_rooms exists');
 select ok(to_regclass('public.chat_room_penalties') is not null, 'chat_room_penalties exists');

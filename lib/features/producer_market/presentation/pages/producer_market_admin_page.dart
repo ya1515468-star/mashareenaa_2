@@ -493,7 +493,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
                 ),
               ),
               title: Text(row['title']?.toString() ?? 'إعلان خدمة'),
-              subtitle: Text((row['city']?.toString() ?? '') + ' • الحالة: ' + status),
+              subtitle: Text('${row['city']?.toString() ?? ''} • الحالة: $status'),
               trailing: Wrap(children: [
                 IconButton(
                   onPressed: () async {

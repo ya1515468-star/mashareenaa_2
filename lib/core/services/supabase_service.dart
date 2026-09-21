@@ -50,6 +50,9 @@ class SupabaseService {
     if (bytes.isEmpty) {
       throw StateError('EMPTY_UPLOAD');
     }
+    if (!_publicBuckets.contains(bucket) && !_privateBuckets.contains(bucket)) {
+      throw StateError('UNKNOWN_STORAGE_BUCKET');
+    }
 
     final uploadId = UploadId.next();
     final displayName = fileName ?? path.split('/').last;

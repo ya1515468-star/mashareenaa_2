@@ -95,10 +95,46 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
   Future<Map<String, dynamic>?> _publicProfileRow(String uid) async {
     final raw = await _sb.rpc('get_public_profile_cosmetics', params: {'p_user_id': uid});
-    if (raw is List && raw.isNotEmpty && raw.first is Map) {
-      return _mapPublicRow(raw.first as Map);
+    if (raw is! List || raw.isEmpty || raw.first is! Map) {
+      return null;
     }
-    return null;
+
+    final row = _mapPublicRow(raw.first as Map);
+
+    // get_public_profile_cosmetics intentionally exposes only the public
+    // profile surface. Chat styling is a separate server-authoritative
+    // contract, so merge the message colour/font from the same identity RPC
+    // used by the chat renderer. Without this merge the local ProfileModel
+    // falls back to white even though set_my_message_color already saved the
+    // selected item correctly in profiles.message_color.
+    try {
+      final identityRaw = await _sb.rpc(
+        'get_user_chat_identity',
+        params: {
+          'p_user_id': uid,
+          'p_room_id': null,
+        },
+      );
+      if (identityRaw is Map) {
+        final identity = Map<String, dynamic>.from(identityRaw);
+        for (final key in const [
+          'message_color',
+          'message_color_key',
+          'message_color_1',
+          'message_color_2',
+          'message_font_family',
+        ]) {
+          if (identity.containsKey(key)) {
+            row[key] = identity[key];
+          }
+        }
+      }
+    } catch (_) {
+      // The public profile must remain readable even if chat styling lookup
+      // is temporarily unavailable; the model will use safe defaults.
+    }
+
+    return row;
   }
 
   @override

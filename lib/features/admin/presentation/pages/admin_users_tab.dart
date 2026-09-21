@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/domain/entities/user_entity.dart';
@@ -70,6 +71,51 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                           ),
                           subtitle: Text(profile.email),
                           children: [
+                            FutureBuilder<Map<String, dynamic>>(
+                              future: Supabase.instance.client
+                                  .rpc('admin_get_user_details', params: {'p_user_id': profile.uid})
+                                  .then((value) => Map<String, dynamic>.from(value as Map)),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: LinearProgressIndicator(),
+                                  );
+                                }
+                                if (snapshot.hasError || !snapshot.hasData) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Text('تعذر تحميل بيانات الهوية الحالية للمستخدم'),
+                                  );
+                                }
+                                final d = snapshot.data!;
+                                final address = d['address']?.toString().trim() ?? '';
+                                final city = d['city']?.toString().trim() ?? '';
+                                final country = d['country']?.toString().trim() ?? '';
+                                final ip = d['last_ip']?.toString().trim() ?? '';
+                                final lat = d['latitude']?.toString().trim() ?? '';
+                                final lon = d['longitude']?.toString().trim() ?? '';
+                                return Card(
+                                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text('عنوان المستخدم: ' + (address.isEmpty ? 'غير مسجل' : address) + '',
+                                            style: const TextStyle(fontWeight: FontWeight.w800)),
+                                        const SizedBox(height: 4),
+                                        Text('الموقع: ' + (country.isEmpty ? '—' : country) + ' / ' + (city.isEmpty ? '—' : city) + ''),
+                                        const SizedBox(height: 4),
+                                        Text('IP: ' + (ip.isEmpty ? 'غير متاح' : ip) + ''),
+                                        if (lat.isNotEmpty || lon.isNotEmpty)
+                                          Text('الإحداثيات: ' + (lat.isEmpty ? '—' : lat) + ' , ' + (lon.isEmpty ? '—' : lon) + ''),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 8),

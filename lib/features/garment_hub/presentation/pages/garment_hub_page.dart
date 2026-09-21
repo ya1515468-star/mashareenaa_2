@@ -134,7 +134,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
               selectedCurrency == 'points' ? pointsFee : gemsFee;
 
           Future<void> pickImages() async {
-            final result = await FilePicker.platform.pickFiles(
+            final result = await FilePicker.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
               allowMultiple: true,

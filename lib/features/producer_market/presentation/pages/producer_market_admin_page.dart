@@ -466,11 +466,60 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
                   trailing: IconButton(onPressed: () => _editGarmentService(row), icon: const Icon(Icons.edit_rounded)),
                 ),
               )),
+          const SizedBox(height: 18),
+          _garmentAdsAdmin(),
         ],
       ),
     );
   }
 
+  Widget _garmentAdsAdmin() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('إعلانات خدمات الألبسة', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+        const SizedBox(height: 8),
+        ...garmentAds.map((row) {
+          final status = row['status']?.toString() ?? 'published';
+          final next = status == 'published' ? 'paused' : 'published';
+          final images = row['images'] is List ? List<dynamic>.from(row['images'] as List) : const <dynamic>[];
+          return Card(
+            child: ListTile(
+              leading: SizedBox(
+                width: 52, height: 52,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: images.isNotEmpty ? Image.network(images.first.toString(), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.checkroom_rounded)) : const Icon(Icons.checkroom_rounded),
+                ),
+              ),
+              title: Text(row['title']?.toString() ?? 'إعلان خدمة'),
+              subtitle: Text((row['city']?.toString() ?? '') + ' • الحالة: ' + status),
+              trailing: Wrap(children: [
+                IconButton(
+                  onPressed: () async {
+                    try { await repo.setGarmentServiceAdStatus(row['id'].toString(), next); await _load(); } catch (e) { _snack(_friendly(e)); }
+                  },
+                  icon: Icon(next == 'published' ? Icons.visibility_rounded : Icons.pause_circle_outline),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    try { await repo.setGarmentServiceAdStatus(row['id'].toString(), 'blocked'); await _load(); } catch (e) { _snack(_friendly(e)); }
+                  },
+                  icon: const Icon(Icons.block_rounded),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    try { await repo.setGarmentServiceAdStatus(row['id'].toString(), 'removed'); await _load(); } catch (e) { _snack(_friendly(e)); }
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ]),
+            ),
+          );
+        }),
+      ],
+    );
+  }
   String _publicationLabel(String? key) => switch (key) {
         'garment_business' => 'نشر النشاط التجاري',
         'garment_product' => 'نشر المنتج',

@@ -1,4 +1,5 @@
 name: Mashareenaa Production Android Release
+# Production size-optimization build: R8 + optimized resource shrinking + ar/en resource filtering.
 
 on:
   workflow_dispatch:

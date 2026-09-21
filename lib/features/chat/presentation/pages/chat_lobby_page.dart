@@ -636,12 +636,25 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                 onPressed: () async {
                   final value = text.trim();
                   if (value.isEmpty) return;
-                  await _db.rpc('submit_platform_broadcast_request', params: {
-                    'p_request_type': type,
-                    'p_body': value,
-                    'p_room_id': _roomId,
-                  });
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  try {
+                    await _db.rpc('submit_platform_broadcast_request', params: {
+                      'p_request_type': type,
+                      'p_body': value,
+                      'p_room_id': _roomId,
+                    });
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تم إرسال الطلب بنجاح')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('تعذر إرسال بث المنصة: $e')),
+                      );
+                    }
+                  }
                 },
                 icon: Icon(type == 'live'
                     ? Icons.live_tv_rounded
@@ -1236,7 +1249,9 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
       try {
         final permission = await _db.rpc('has_permission',
             params: {'requested_permission': 'broadcast_messages'});
-        if (mounted) setState(() => _canManageBroadcast = permission == true);
+        if (mounted) {
+          setState(() => _canManageBroadcast = _isPlatformOwner || permission == true);
+        }
       } catch (_) {
         if (mounted) setState(() => _canManageBroadcast = _isPlatformOwner);
       }
@@ -3991,7 +4006,6 @@ class _VideoStyleBottomBar extends StatelessWidget {
                   in <({IconData icon, String label, VoidCallback onTap})>[
                 if (showMediaPlay && onMedia != null)
                   (icon: Icons.play_circle_fill, label: 'تشغيل', onTap: onMedia!),
-                (icon: Icons.meeting_room_outlined, label: 'الغرف', onTap: onRooms),
                 (icon: Icons.people_outline, label: 'المتصلون', onTap: onOnline),
                 (icon: Icons.person_add, label: 'الأصدقاء', onTap: onFriends),
                 (icon: Icons.storefront_outlined, label: 'المتجر', onTap: onChatStore),

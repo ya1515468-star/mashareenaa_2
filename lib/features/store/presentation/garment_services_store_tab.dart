@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -28,6 +29,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
   List<Map<String, dynamic>> services = const [];
   List<Map<String, dynamic>> businesses = const [];
   List<Map<String, dynamic>> fees = const [];
+  List<Map<String, dynamic>> ads = const [];
   String? selectedSector;
   String publicationCurrency = 'points';
   bool loading = true;
@@ -52,6 +54,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
         repo.garmentPublishedServices(sectorKey: selectedSector),
         repo.myGarmentBusinesses(),
         repo.garmentPublicationFees(),
+        repo.garmentServiceAds(sectorKey: selectedSector),
       ]);
       if (!mounted) return;
       setState(() {
@@ -59,6 +62,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
         services = List<Map<String, dynamic>>.from(result[1] as List);
         businesses = List<Map<String, dynamic>>.from(result[2] as List);
         fees = List<Map<String, dynamic>>.from(result[3] as List);
+        ads = List<Map<String, dynamic>>.from(result[4] as List);
         loading = false;
       });
     } catch (e) {
@@ -200,6 +204,9 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
               )
             else
               ...visibleServices.map(_serviceCard),
+            const SizedBox(height: 18),
+            _adsSection(),
+            const SizedBox(height: 18),
             if (businesses.isNotEmpty) ...[
               const SizedBox(height: 18),
               const Text('أنشطتك على الخادم', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
@@ -330,6 +337,202 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
               ),
       ),
     );
+  }
+
+
+  Widget _adsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: Text('إعلانات خدمات الألبسة', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
+            FilledButton.icon(
+              onPressed: catalog.isEmpty ? null : _createAd,
+              icon: const Icon(Icons.campaign_rounded),
+              label: const Text('إضافة إعلان'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (ads.isEmpty)
+          const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('لا توجد إعلانات خدمات معروضة ضمن الاختيار الحالي.')))
+        else
+          ...ads.map(_adCard),
+      ],
+    );
+  }
+
+  Widget _adCard(Map<String, dynamic> row) {
+    final images = row['images'] is List ? List<dynamic>.from(row['images'] as List) : const <dynamic>[];
+    final status = row['status']?.toString() ?? 'pending';
+    final image = images.isEmpty ? null : images.first?.toString();
+    final specs = row['specs'] is Map ? Map<String, dynamic>.from(row['specs'] as Map) : <String, dynamic>{};
+    final location = (row['city']?.toString().isNotEmpty == true) ? ' • ' + row['city'].toString() : '';
+    final details = (specs['details']?.toString().isNotEmpty == true) ? ' • ' + specs['details'].toString() : '';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 9),
+      child: ListTile(
+        leading: SizedBox(
+          width: 58, height: 58,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: image != null && image.isNotEmpty
+                ? Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.checkroom_rounded))
+                : const Icon(Icons.checkroom_rounded),
+          ),
+        ),
+        title: Text(row['title']?.toString() ?? 'إعلان خدمة', style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(_sectorName(row['sector_key']?.toString()) + ' • ' + status + location + details, maxLines: 3, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+
+  Future<void> _createAd() async {
+    if (catalog.isEmpty) return;
+    final title = TextEditingController();
+    final description = TextEditingController();
+    final price = TextEditingController();
+    final unit = TextEditingController(text: 'طلب');
+    final minQty = TextEditingController();
+    final city = TextEditingController();
+    final address = TextEditingController();
+    final phone = TextEditingController();
+    final whatsapp = TextEditingController();
+    final details = TextEditingController();
+    var serviceKey = catalog.first['service_key']?.toString() ?? '';
+    var sectorKey = catalog.first['sector_key']?.toString() ?? 'tailoring';
+    var currency = publicationCurrency;
+    final imageUrls = <String>[];
+
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialog) {
+            final fee = _feeFor('garment_service');
+            final cost = currency == 'points' ? (fee?['points_cost'] ?? 0) : (fee?['gems_cost'] ?? 0);
+            final enabled = fee?['is_enabled'] == true && (cost as num) > 0;
+            return AlertDialog(
+              title: const Text('إضافة إعلان خدمة ألبسة — نشر مدفوع'),
+              content: SizedBox(
+                width: 560,
+                child: SingleChildScrollView(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: serviceKey,
+                      items: [
+                        for (final row in catalog)
+                          DropdownMenuItem(
+                            value: row['service_key']?.toString(),
+                            child: Text(row['name_ar']?.toString() ?? row['service_key']?.toString() ?? ''),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        final chosen = catalog.firstWhere((e) => e['service_key']?.toString() == v, orElse: () => catalog.first);
+                        setDialog(() {
+                          serviceKey = v ?? serviceKey;
+                          sectorKey = chosen['sector_key']?.toString() ?? sectorKey;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: 'الخدمة'),
+                    ),
+                    TextField(controller: title, decoration: const InputDecoration(labelText: 'عنوان الإعلان')),
+                    TextField(controller: description, maxLines: 4, decoration: const InputDecoration(labelText: 'وصف الخدمة')),
+                    Row(children: [
+                      Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: unit, decoration: const InputDecoration(labelText: 'الوحدة'))),
+                    ]),
+                    Row(children: [
+                      Expanded(child: TextField(controller: minQty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الأدنى للكمية'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: city, decoration: const InputDecoration(labelText: 'المدينة'))),
+                    ]),
+                    TextField(controller: address, decoration: const InputDecoration(labelText: 'العنوان التفصيلي')),
+                    Row(children: [
+                      Expanded(child: TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'الهاتف'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: whatsapp, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'واتساب'))),
+                    ]),
+                    TextField(controller: details, maxLines: 4, decoration: const InputDecoration(labelText: 'المواصفات والتفاصيل الإضافية')),
+                    const SizedBox(height: 8),
+                    Align(alignment: Alignment.centerRight, child: Text('صور الإعلان (' + imageUrls.length.toString() + '/5)', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        ...imageUrls.map((u) => ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(u, width: 62, height: 62, fit: BoxFit.cover))),
+                        if (imageUrls.length < 5)
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final file = await repo.pickImage();
+                              if (file == null) return;
+                              try {
+                                final url = await repo.uploadGarmentServiceImage(file);
+                                setDialog(() => imageUrls.add(url));
+                              } catch (e) {
+                                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendly(e))));
+                              }
+                            },
+                            icon: const Icon(Icons.add_photo_alternate_outlined),
+                            label: const Text('رفع صورة'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'points', label: Text('نقاط')),
+                        ButtonSegment(value: 'gems', label: Text('جواهر')),
+                      ],
+                      selected: {currency},
+                      onSelectionChanged: (v) => setDialog(() => currency = v.first),
+                    ),
+                    const SizedBox(height: 5),
+                    Text('رسم النشر: ' + cost.toString() + (currency == 'points' ? ' نقطة' : ' جوهرة')),
+                    if (!enabled) const Text('الخدمة متوقفة أو رسمها غير مضبوط من لوحة المالك.', style: TextStyle(color: Colors.orangeAccent)),
+                  ]),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                FilledButton(
+                  onPressed: !enabled || title.text.trim().isEmpty ? null : () async {
+                    try {
+                      await repo.publishGarmentServiceAd(
+                        serviceKey: serviceKey,
+                        sectorKey: sectorKey,
+                        title: title.text.trim(),
+                        description: description.text.trim(),
+                        priceMinorUnits: int.tryParse(price.text.trim()),
+                        unit: unit.text.trim().isEmpty ? null : unit.text.trim(),
+                        minQty: int.tryParse(minQty.text.trim()),
+                        city: city.text.trim().isEmpty ? null : city.text.trim(),
+                        address: address.text.trim().isEmpty ? null : address.text.trim(),
+                        phone: phone.text.trim().isEmpty ? null : phone.text.trim(),
+                        whatsapp: whatsapp.text.trim().isEmpty ? null : whatsapp.text.trim(),
+                        images: imageUrls,
+                        specs: {'details': details.text.trim()},
+                        publicationCurrency: currency,
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx, true);
+                    } catch (e) {
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendly(e))));
+                    }
+                  },
+                  child: const Text('دفع ونشر'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      if (result == true) await _load();
+    } finally {
+      title.dispose(); description.dispose(); price.dispose(); unit.dispose();
+      minQty.dispose(); city.dispose(); address.dispose(); phone.dispose(); whatsapp.dispose(); details.dispose();
+    }
   }
 
   Future<void> _createBusiness() async {

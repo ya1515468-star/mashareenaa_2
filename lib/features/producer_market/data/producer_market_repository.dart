@@ -416,6 +416,26 @@ class ProducerMarketRepository {
   Future<List<Map<String, dynamic>>> garmentPublishedServices({String? sectorKey}) async =>
       List<Map<String, dynamic>>.from(await _supabase.rpc('get_garment_published_services', params: {'p_sector_key': sectorKey}));
 
+  Future<List<Map<String, dynamic>>> garmentDirectory({
+    String? sectorKey,
+    String? city,
+    String? search,
+    int limit = 100,
+    int offset = 0,
+  }) async =>
+      List<Map<String, dynamic>>.from(
+        await _supabase.rpc(
+          'browse_garment_directory',
+          params: {
+            'p_sector_key': sectorKey,
+            'p_city': city,
+            'p_search': search,
+            'p_limit': limit,
+            'p_offset': offset,
+          },
+        ),
+      );
+
   Future<List<Map<String, dynamic>>> myGarmentBusinesses() async =>
       List<Map<String, dynamic>>.from(await _supabase.rpc('get_my_garment_businesses'));
 

@@ -1,11 +1,7 @@
-# Mashareena release baseline. Flutter/R8 generated rules remain authoritative.
-# Keep Flutter plugin registrants and platform channel classes discoverable.
--keep class io.flutter.embedding.** { *; }
+# Mashareena release shrinking rules.
+# Keep plugin registrants and plugin platform/channel classes discoverable.
+# Do not keep all of io.flutter.embedding: unused deferred-component code
+# would otherwise retain legacy Play Core references and inflate release size.
 -keep class io.flutter.plugins.** { *; }
--keep class io.flutter.app.** { *; }
 -dontwarn javax.annotation.**
 -dontwarn org.conscrypt.**
-
-# Flutter's deferred-components embedding references these optional Play Core classes.
-# Mashareenaa does not use deferred components, so suppress their absent-class warnings during R8.
--dontwarn com.google.android.play.core.**

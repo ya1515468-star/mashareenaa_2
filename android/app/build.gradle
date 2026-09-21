@@ -52,6 +52,7 @@ android {
             if (storeFilePath != null) {
                 storeFile = rootProject.file(storeFilePath)
             }
+            storeType = keystoreProperties["storeType"] ?: "PKCS12"
             storePassword = keystoreProperties["storePassword"]
             keyAlias = keystoreProperties["keyAlias"]
             keyPassword = keystoreProperties["keyPassword"]

@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS private_rpc.sync_my_public_profile(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text,text,numeric,boolean,boolean,numeric,text,integer,numeric,double precision,double precision);

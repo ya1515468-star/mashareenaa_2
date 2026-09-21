@@ -16,6 +16,7 @@ class MediaUploadService {
   final String bucket;
 
   static const Map<String, int> maxBytes = {
+    'avatars': 8 * 1024 * 1024,
     'profile-avatars': 8 * 1024 * 1024,
     'avatar-frames': 8 * 1024 * 1024,
     'name-animations': 8 * 1024 * 1024,
@@ -25,32 +26,47 @@ class MediaUploadService {
     'chat-media-plus': 25 * 1024 * 1024,
     'chat-badges': 8 * 1024 * 1024,
     'chat-welcome-images': 8 * 1024 * 1024,
+    'chat-wallpapers': 6 * 1024 * 1024,
+    'currency-package-media': 6 * 1024 * 1024,
+    'garment-service-media': 6 * 1024 * 1024,
+    'member-badges': 512 * 1024,
     'profile-patterns': 15 * 1024 * 1024,
     'profile-products': 25 * 1024 * 1024,
+    'producer-market-media': 100 * 1024 * 1024,
     'store-media': 25 * 1024 * 1024,
   };
 
   static const Map<String, Set<String>> allowedExtensions = {
+    'avatars': {'png', 'jpg', 'jpeg', 'webp', 'gif'},
     'profile-avatars': {'png', 'jpg', 'jpeg', 'webp', 'gif'},
     'avatar-frames': {'gif', 'png', 'jpg', 'jpeg', 'webp', 'bmp'},
     'name-animations': {'gif'},
     'chat-sounds': {'mp3', 'wav', 'ogg', 'm4a', 'aac', 'webm'},
     'profile-music': {'mp3', 'wav', 'ogg', 'm4a', 'aac', 'webm'},
     'chat-badges': {'gif', 'png', 'jpg', 'jpeg', 'webp'},
-    'chat-welcome-images': {'gif'},
-    'profile-patterns': {'png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'zip'},
+    'chat-welcome-images': {'gif', 'png', 'jpeg', 'jpg', 'webp'},
+    'chat-wallpapers': {'png', 'jpg', 'jpeg', 'webp'},
+    'currency-package-media': {'png', 'jpg', 'jpeg', 'webp'},
+    'garment-service-media': {'png', 'jpg', 'jpeg', 'webp'},
+    'member-badges': {'gif'},
+    'profile-patterns': {'png', 'jpg', 'jpeg', 'webp', 'gif'},
     'profile-products': {'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov'},
+    'producer-market-media': {
+      'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov',
+      'pdf', 'doc', 'docx', 'xls', 'xlsx',
+    },
     'store-media': {
       'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov',
-      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'zip', 'pdf'
+      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'zip', 'pdf',
+      'doc', 'docx', 'txt',
     },
     'chat-media-plus': {
       'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov',
-      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'pdf', 'zip'
+      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'pdf', 'zip', 'doc', 'docx', 'txt',
     },
     'media': {
       'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov',
-      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'zip', 'pdf'
+      'mp3', 'm4a', 'wav', 'ogg', 'aac', 'zip', 'pdf', 'doc', 'docx', 'txt',
     },
   };
 
@@ -80,9 +96,16 @@ class MediaUploadService {
     final safeFolder = _cleanPart(folder);
     final safeUid = _cleanPart(uid);
     final safeName = _cleanFileName(fileName, ext);
-    final path = bucket == 'profile-avatars'
-        ? '$safeUid/${_uniqueName(safeName)}'
-        : '$safeFolder/$safeUid/${_uniqueName(safeName)}';
+    final uniqueName = _uniqueName(safeName);
+    final path = switch (bucket) {
+      'avatars' ||
+      'profile-avatars' ||
+      'profile-music' ||
+      'garment-service-media' ||
+      'profile-patterns' =>
+        '$safeUid/$uniqueName',
+      _ => '$safeFolder/$safeUid/$uniqueName',
+    };
     return uploadBytesAtPath(
       bytes: bytes,
       fileName: fileName,
@@ -250,6 +273,11 @@ class MediaUploadService {
         'aac' => 'audio/aac',
         'zip' => 'application/zip',
         'pdf' => 'application/pdf',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'txt' => 'text/plain',
         _ => 'application/octet-stream',
       };
 }

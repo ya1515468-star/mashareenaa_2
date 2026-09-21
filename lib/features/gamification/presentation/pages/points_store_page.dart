@@ -1,6 +1,8 @@
-import 'package:file_picker/file_picker.dart';
+enum StoreFeatureType { glow, frame, background }
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/media_upload_service.dart';
@@ -75,7 +77,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
     String? imageUrl = row?['image_url']?.toString();
     bool enabled = row?['enabled'] != false;
     bool featured = row?['featured'] == true;
-    PlatformFile? picked;
+    String? pickedName;
 
     try {
       await showDialog<void>(
@@ -105,16 +107,16 @@ class _PointsStorePageState extends State<PointsStorePage> {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.upload_rounded),
-                label: Text(picked?.name ?? (imageUrl == null ? 'رفع صورة' : 'استبدال الصورة')),
+                label: Text(pickedName ?? (imageUrl == null ? 'رفع صورة' : 'استبدال الصورة')),
                 onPressed: () async {
-                  final file = await _media.pickImage();
+                  final file = await ImagePicker().pickImage(source: ImageSource.gallery);
                   if (file == null) return;
                   try {
                     final uid = _db.auth.currentUser?.id;
                     if (uid == null) throw StateError('AUTH_REQUIRED');
-                    final bytes = file.bytes ?? await file.xFile.readAsBytes();
+                    final bytes = await file.readAsBytes();
                     final url = await _media.uploadBytes(bytes: bytes, fileName: file.name, folder: 'packages', uid: uid);
-                    setDialog(() { picked = file; imageUrl = url; });
+                    setDialog(() { pickedName = file.name; imageUrl = url; });
                   } catch (e) {
                     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendly(e))));
                   }

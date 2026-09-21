@@ -203,7 +203,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
               }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('فشل نشر الإعلان: ' + e.toString())),
+                  SnackBar(content: Text('فشل نشر الإعلان: $e')),
                 );
               }
             } finally {
@@ -348,7 +348,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        'رسوم النشر: ' + currentFee.toString(),
+                        'رسوم النشر: $currentFee',
                         style: const TextStyle(color: Colors.amber),
                       ),
                     ),
@@ -360,7 +360,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                         label: Text(
                           images.isEmpty
                               ? 'إضافة صور'
-                              : 'الصور المضافة: ' + images.length.toString(),
+                              : 'الصور المضافة: ${images.length},
                         ),
                       ),
                     ),

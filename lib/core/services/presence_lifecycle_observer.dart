@@ -15,6 +15,7 @@ import '../constants/app_constants.dart';
 import '../di/injection_container.dart';
 import 'dragon_bootstrap_service.dart';
 import 'supabase_service.dart';
+import '../monitoring/error_monitor.dart';
 
 /// يضبط presence/{uid}.isOnline = true عند دخول المستخدم المصادَق
 /// للتطبيق أو عودته من الخلفية، ويضبطه false عند الانتقال للخلفية
@@ -40,6 +41,9 @@ class _PresenceLifecycleObserverState
   StreamSubscription? _friendSoundSubscription;
   StreamSubscription? _callSoundSubscription;
   ProviderSubscription<AsyncValue<UserEntity?>>? _authSubscription;
+  String? _activeUid;
+  Timer? _realtimeReconnectTimer;
+  bool _realtimeReconnectScheduled = false;
   Set<String> _knownNotificationIds = <String>{};
   Set<String> _knownFriendRequestIds = <String>{};
   Set<String> _knownCallIds = <String>{};
@@ -60,7 +64,7 @@ class _PresenceLifecycleObserverState
         if (user != null) {
           _handleAuthenticatedUser(user);
         } else {
-          _updatePresence(false);
+          _handleSignedOut();
         }
       },
     );
@@ -103,8 +107,15 @@ class _PresenceLifecycleObserverState
     _callSoundSubscription = null;
 
     WidgetsBinding.instance.removeObserver(this);
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = null;
+    _realtimeReconnectScheduled = false;
 
-    _updatePresence(false);
+    final uid = _activeUid;
+    _activeUid = null;
+    if (uid != null) {
+      unawaited(_updatePresenceForUid(uid, false));
+    }
 
     super.dispose();
   }
@@ -123,10 +134,14 @@ class _PresenceLifecycleObserverState
     _updatePresence(resumed);
   }
 
-  void _updatePresence(bool isOnline) async {
-    final uid = ref.read(authControllerProvider).value?.uid;
+  Future<void> _updatePresence(bool isOnline) async {
+    if (!mounted) return;
+    final uid = ref.read(authControllerProvider).valueOrNull?.uid;
     if (uid == null) return;
+    await _updatePresenceForUid(uid, isOnline);
+  }
 
+  Future<void> _updatePresenceForUid(String uid, bool isOnline) async {
     // ميزة 10 من القائمة الإضافية: من فعّل "إخفاء حالة الاتصال"
     // (متاحة لمن يملك canHideOnlineStatus في عضويته) يبقى isOnline
     // مضبوطًا على false دائمًا بصرف النظر عن حالته الفعلية — بهذا
@@ -165,6 +180,13 @@ class _PresenceLifecycleObserverState
   /// المحادثة المفتوحة حاليًا) ويشغّل [GiftAnimationOverlay] بملء
   /// الشاشة فورًا — بهذا تظهر رسوم الهدايا الكبيرة حتى لو كان
   /// المستخدم في شاشة أخرى من التطبيق.
+  void _handleSignedOut() {
+    _activeUid = null;
+    _cancelRealtimeSubscriptions();
+    _missedCallTimer?.cancel();
+    _missedCallTimer = null;
+  }
+
   void _listenForGifts(String uid) {
     if (_giftSubscriptionUid == uid) return;
     _giftSubscription?.cancel();
@@ -205,6 +227,8 @@ class _PresenceLifecycleObserverState
       if (amount > 0 && createdBy != null && createdBy != uid && isFresh) {
         unawaited(_chatSound.play(ChatSoundEvent.transfer));
       }
+    }, onError: (Object error, StackTrace stack) {
+      unawaited(_reportRealtimeFailure('wallet_transactions', error, stack, uid));
     });
   }
 
@@ -224,6 +248,14 @@ class _PresenceLifecycleObserverState
       if (user == null) return;
 
       unawaited(_showBroadcastForUser(broadcast, user));
+    }, onError: (Object error, StackTrace stack) {
+      unawaited(ErrorMonitor.report(
+        error,
+        stack: stack,
+        source: 'realtime.broadcasts',
+        screen: 'realtime.global',
+        severity: 'warning',
+      ));
     });
   }
 
@@ -258,6 +290,7 @@ class _PresenceLifecycleObserverState
         .stream(primaryKey: ['id'])
         .eq('uid', uid)
         .listen((rows) {
+          if (!mounted || _activeUid != uid) return;
           final ids = rows.map((r) => r['id'].toString()).toSet();
           if (_knownNotificationIds.isEmpty) {
             _knownNotificationIds = ids;
@@ -267,6 +300,8 @@ class _PresenceLifecycleObserverState
             unawaited(_chatSound.play(ChatSoundEvent.notification));
           }
           _knownNotificationIds = ids;
+        }, onError: (Object error, StackTrace stack) {
+          unawaited(_reportRealtimeFailure('notifications', error, stack, uid));
         });
 
     _friendSoundSubscription?.cancel();
@@ -276,6 +311,7 @@ class _PresenceLifecycleObserverState
         .stream(primaryKey: ['id'])
         .eq('to_uid', uid)
         .listen((rows) {
+          if (!mounted || _activeUid != uid) return;
           final pending = rows
               .where((r) => r['status']?.toString() == 'pending')
               .map((r) => r['id'].toString())
@@ -288,17 +324,84 @@ class _PresenceLifecycleObserverState
             unawaited(_chatSound.play(ChatSoundEvent.friendRequest));
           }
           _knownFriendRequestIds = pending;
+        }, onError: (Object error, StackTrace stack) {
+          unawaited(_reportRealtimeFailure('friend_requests', error, stack, uid));
         });
   }
 
   void _handleAuthenticatedUser(UserEntity user) {
-    _updatePresence(true);
-    DragonBootstrapService.ensureDragonRole(user);
-    _listenForGifts(user.uid);
-    _listenForTransfers(user.uid);
-    _listenForNotificationSounds(user.uid);
-    _listenForCallSounds(user.uid);
+    final changed = _activeUid != user.uid;
+    _activeUid = user.uid;
+    if (changed) {
+      _cancelRealtimeSubscriptions();
+    }
+    unawaited(_updatePresence(true));
+    unawaited(_startAuthenticatedRealtime(user.uid));
+    unawaited(DragonBootstrapService.ensureDragonRole(user));
     _startMissedCallSweep();
+  }
+
+  void _cancelRealtimeSubscriptions() {
+    _giftSubscription?.cancel();
+    _giftSubscription = null;
+    _giftSubscriptionUid = null;
+    _transferSubscription?.cancel();
+    _transferSubscription = null;
+    _transferSubscriptionUid = null;
+    _notificationSoundSubscription?.cancel();
+    _notificationSoundSubscription = null;
+    _friendSoundSubscription?.cancel();
+    _friendSoundSubscription = null;
+    _callSoundSubscription?.cancel();
+    _callSoundSubscription = null;
+  }
+
+  Future<void> _startAuthenticatedRealtime(String uid) async {
+    try {
+      await SupabaseService.ensureValidSession();
+    } catch (e, stack) {
+      if (mounted) {
+        unawaited(ErrorMonitor.report(
+          e,
+          stack: stack,
+          source: 'realtime_session_refresh',
+          screen: 'realtime.global',
+          severity: 'warning',
+        ));
+      }
+      return;
+    }
+    if (!mounted || _activeUid != uid) return;
+    _listenForGifts(uid);
+    _listenForTransfers(uid);
+    _listenForNotificationSounds(uid);
+    _listenForCallSounds(uid);
+  }
+
+  Future<void> _reportRealtimeFailure(
+      String channel, Object error, StackTrace stack, String uid) async {
+    if (!mounted || _activeUid != uid) return;
+    unawaited(ErrorMonitor.report(
+      error,
+      stack: stack,
+      source: 'realtime.$channel',
+      screen: 'realtime.global',
+      severity: 'warning',
+    ));
+    _scheduleRealtimeReconnect(uid);
+  }
+
+  void _scheduleRealtimeReconnect(String uid) {
+    if (!mounted || _activeUid != uid || _realtimeReconnectScheduled) return;
+    _realtimeReconnectScheduled = true;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = Timer(const Duration(seconds: 2), () async {
+      _realtimeReconnectTimer = null;
+      _realtimeReconnectScheduled = false;
+      if (!mounted || _activeUid != uid) return;
+      _cancelRealtimeSubscriptions();
+      await _startAuthenticatedRealtime(uid);
+    });
   }
 
   Timer? _missedCallTimer;
@@ -330,6 +433,7 @@ class _PresenceLifecycleObserverState
         .stream(primaryKey: ['id'])
         .eq('collection_path', 'calls')
         .listen((rows) {
+          if (!mounted || _activeUid != uid) return;
           final ringing = <String>{};
           for (final row in rows) {
             final data = row['data'] is Map
@@ -349,6 +453,8 @@ class _PresenceLifecycleObserverState
             unawaited(_chatSound.play(ChatSoundEvent.call));
           }
           _knownCallIds = ringing;
+        }, onError: (Object error, StackTrace stack) {
+          unawaited(_reportRealtimeFailure('calls', error, stack, uid));
         });
   }
 

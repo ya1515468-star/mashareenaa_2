@@ -285,50 +285,77 @@ class _PresenceLifecycleObserverState
     }
   }
 
+  ChatSoundEvent _soundEventForNotification(String type) {
+    switch (type) {
+      case 'mention':
+        return ChatSoundEvent.mention;
+      case 'chatReply':
+      case 'chat_reply':
+        return ChatSoundEvent.reply;
+      case 'callIncoming':
+      case 'call_incoming':
+      case 'callEnded':
+      case 'call_ended':
+        return ChatSoundEvent.call;
+      case 'friendRequest':
+      case 'friend_request':
+      case 'friendAccepted':
+      case 'friend_accepted':
+      case 'friendRejected':
+      case 'friend_rejected':
+        return ChatSoundEvent.friendRequest;
+      case 'message':
+        return ChatSoundEvent.privateMessage;
+      case 'like':
+      case 'comment':
+      case 'follow':
+      case 'system':
+      case 'report':
+      default:
+        return ChatSoundEvent.notification;
+    }
+  }
+
   void _listenForNotificationSounds(String uid) {
     _notificationSoundSubscription?.cancel();
+    _friendSoundSubscription?.cancel();
+    _friendSoundSubscription = null;
+
     _notificationSoundSubscription = Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('uid', uid)
+        .order('created_at')
         .listen((rows) {
-          if (!mounted || _activeUid != uid) return;
-          final ids = rows.map((r) => r['id'].toString()).toSet();
-          if (_knownNotificationIds.isEmpty) {
-            _knownNotificationIds = ids;
-            return;
-          }
-          if (ids.difference(_knownNotificationIds).isNotEmpty) {
-            unawaited(_chatSound.play(ChatSoundEvent.notification));
-          }
-          _knownNotificationIds = ids;
-        }, onError: (Object error, StackTrace stack) {
-          unawaited(_reportRealtimeFailure('notifications', error, stack, uid));
-        });
+      if (!mounted || _activeUid != uid) return;
 
-    _friendSoundSubscription?.cancel();
+      final currentIds = rows.map((r) => r['id'].toString()).toSet();
+      if (_knownNotificationIds.isEmpty) {
+        _knownNotificationIds = currentIds;
+        return;
+      }
+
+      final newRows = rows
+          .where((r) => !_knownNotificationIds.contains(r['id'].toString()))
+          .toList(growable: false);
+      _knownNotificationIds = currentIds;
+      if (newRows.isEmpty) return;
+
+      final latest = newRows.last;
+      final event = _soundEventForNotification(
+        latest['type']?.toString() ?? 'system',
+      );
+      unawaited(_chatSound.play(event));
+    }, onError: (Object error, StackTrace stack) {
+      unawaited(_reportRealtimeFailure('notifications', error, stack, uid));
+    });
+
+    // Incoming calls are represented in app_documents for the actual
+    // ringing overlay and in notifications for the persistent notification
+    // center. The notification row is the single sound source, avoiding
+    // double-ringing when the call overlay and notification arrive together.
     _callSoundSubscription?.cancel();
-    _friendSoundSubscription = Supabase.instance.client
-        .from('friend_requests')
-        .stream(primaryKey: ['id'])
-        .eq('to_uid', uid)
-        .listen((rows) {
-          if (!mounted || _activeUid != uid) return;
-          final pending = rows
-              .where((r) => r['status']?.toString() == 'pending')
-              .map((r) => r['id'].toString())
-              .toSet();
-          if (_knownFriendRequestIds.isEmpty) {
-            _knownFriendRequestIds = pending;
-            return;
-          }
-          if (pending.difference(_knownFriendRequestIds).isNotEmpty) {
-            unawaited(_chatSound.play(ChatSoundEvent.friendRequest));
-          }
-          _knownFriendRequestIds = pending;
-        }, onError: (Object error, StackTrace stack) {
-          unawaited(_reportRealtimeFailure('friend_requests', error, stack, uid));
-        });
+    _callSoundSubscription = null;
   }
 
   void _handleAuthenticatedUser(UserEntity user) {

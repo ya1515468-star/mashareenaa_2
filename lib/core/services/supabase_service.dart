@@ -34,6 +34,28 @@ class SupabaseService {
     fileName: fileName,
   );
 
+  static Future<void> ensureValidSession() async {
+    final uid = client.auth.currentUser?.id;
+    final session = client.auth.currentSession;
+    if (uid == null || session == null || session.accessToken.isEmpty) {
+      throw StateError('AUTH_REQUIRED');
+    }
+    final expiresAt = session.expiresAt;
+    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (expiresAt != null && expiresAt <= nowSeconds + 60) {
+      try {
+        final refreshed = await client.auth.refreshSession();
+        final next = refreshed.session ?? client.auth.currentSession;
+        if (next == null || next.accessToken.isEmpty || client.auth.currentUser == null) {
+          throw StateError('SESSION_EXPIRED');
+        }
+      } catch (e) {
+        if (e is StateError) rethrow;
+        throw StateError('SESSION_REFRESH_FAILED: $e');
+      }
+    }
+  }
+
   static Future<String> uploadBytesToBucket({
     required String bucket,
     required String path,
@@ -42,15 +64,11 @@ class SupabaseService {
     bool upsert = false,
     String? fileName,
   }) async {
-    final uid = client.auth.currentUser?.id;
-    final session = client.auth.currentSession;
-    if (session == null || session.accessToken.isEmpty || uid == null) {
-      throw StateError('AUTH_REQUIRED');
-    }
     if (bytes.isEmpty) {
       throw StateError('EMPTY_UPLOAD');
     }
 
+    await ensureValidSession();
     final uploadId = UploadId.next();
     final displayName = fileName ?? path.split('/').last;
     final total = bytes.length;
@@ -68,7 +86,7 @@ class SupabaseService {
         fileOptions: FileOptions(
           cacheControl: '3600',
           contentType: contentType,
-          upsert: false,
+          upsert: upsert,
         ),
       );
 
@@ -133,14 +151,21 @@ class SupabaseService {
   static const Set<String> _privateBuckets = {
     'profile-patterns',
     'profile-products',
+    'producer-market-media',
+    'chat-media-plus',
   };
 
   static const Set<String> _publicBuckets = {
     'profile-avatars',
+    'avatars',
     'profile-music',
     'chat-sounds',
+    'chat-wallpapers',
     'chat-welcome-images',
     'chat-badges',
+    'currency-package-media',
+    'garment-service-media',
+    'member-badges',
     'media',
     'store-media',
     'avatar-frames',

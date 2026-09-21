@@ -406,6 +406,8 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
         return 'هذه الشارة غير متاحة حاليًا؛ اختر شارة أخرى.';
       case 'FORBIDDEN':
         return 'هذه العملية غير متاحة لحسابك في هذه الغرفة.';
+      case 'CHAT_RESTRICTED':
+        return 'لا يمكنك الإرسال في هذه الغرفة حاليًا بسبب تقييد فعّال (حظر أو كتم أو طرد). إذا كان التقييد منتهيًا فسيتم إسقاطه تلقائيًا عند المحاولة التالية.';
       case 'AUTH_REQUIRED':
         return 'انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.';
       case 'ROOM_NOT_FOUND':

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/producer_market_profile_tab.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
@@ -64,466 +65,495 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             return const ErrorView(message: 'لم يتم العثور على الملف الشخصي');
           }
 
-          return SingleChildScrollView(
+          return DefaultTabController(
+            length: 2,
             child: Column(
               children: [
-                // الغلاف العلوي + الصورة الشخصية فوقه متراكبة، ثم رمز
-                // الرتبة واسمها بخط صغير أنيق أسفل الصورة مباشرة —
-                // تمامًا كما في المواصفة. إن لم توجد صورة غلاف
-                // ومُجهَّزة خلفية متحركة من المتجر، تُعرض بدلًا من
-                // اللون الثابت.
-                GestureDetector(
-                  onTap: () => _pickAndUploadProfileImage(context, ref, profile,
-                      cover: true),
-                  child: SizedBox(
-                    height: 140,
-                    width: double.infinity,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        (_safeHttpUrl(profile.coverUrl) != null)
-                            ? Image.network(
-                                _safeHttpUrl(profile.coverUrl)!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const ColoredBox(color: AppColors.surface),
-                              )
-                            : Consumer(
-                                builder: (context, ref, _) {
-                                  final equipped = ref
-                                          .watch(equippedItemsProvider(
-                                              profile.uid))
-                                          .valueOrNull ??
-                                      {};
-                                  final bgItemId = equipped[StoreItemCategory
-                                      .animatedBackground.wire];
-                                  if (bgItemId == null) {
-                                    return const ColoredBox(
-                                        color: AppColors.surface);
-                                  }
-                                  final catalogAsync =
-                                      ref.watch(storeCatalogProvider);
-                                  StoreItemEntity? item;
-                                  for (final i in catalogAsync.valueOrNull ??
-                                      const <StoreItemEntity>[]) {
-                                    if (i.id == bgItemId) {
-                                      item = i;
-                                      break;
-                                    }
-                                  }
-                                  if (item == null) {
-                                    return const ColoredBox(
-                                        color: AppColors.surface);
-                                  }
-                                  return AnimatedGradientBackgroundGeneric(
-                                      colors: item.colors);
-                                },
-                              ),
-                        const Positioned(
-                          left: 12,
-                          bottom: 10,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Icon(Icons.camera_alt_outlined, size: 18),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                const Material(
+                  color: AppColors.surface,
+                  child: TabBar(
+                    tabs: [
+                      Tab(
+                        icon: Icon(Icons.person_outline),
+                        text: 'الملف',
+                      ),
+                      Tab(
+                        icon: Icon(Icons.home_repair_service_outlined),
+                        text: 'الورش',
+                      ),
+                    ],
                   ),
                 ),
-                Transform.translate(
-                  offset: const Offset(0, -40),
-                  child: GestureDetector(
-                    onTap: () => _pickAndUploadProfileImage(
-                        context, ref, profile,
-                        cover: false),
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
-                      clipBehavior: Clip.none,
-                      children: [
-                        Consumer(
-                          builder: (context, ref, _) {
-                            final equipped = ref
-                                    .watch(equippedItemsProvider(profile.uid))
-                                    .valueOrNull ??
-                                {};
-                            final equippedFrameId =
-                                equipped[StoreItemCategory.avatarFrame.wire];
-
-                            // إطار المتجر المُشترى (البسيط الملوّن) له الأولوية
-                            // فقط إن لم يكن هناك إطار فني حديث (avatarFrameKey)
-                            // مُفعَّلًا؛ غير ذلك يظهر الإطاران معًا (الدائرة
-                            // الملونة القديمة خلف الإطار الفني الجديد).
-                            final hasModernFrame = profile.avatarFrameKey != null &&
-                                profile.avatarFrameKey!.trim().isNotEmpty;
-                            if (equippedFrameId != null && !hasModernFrame) {
-                              final catalogAsync =
-                                  ref.watch(storeCatalogProvider);
-                              StoreItemEntity? item;
-                              for (final i in catalogAsync.valueOrNull ??
-                                  const <StoreItemEntity>[]) {
-                                if (i.id == equippedFrameId) {
-                                  item = i;
-                                  break;
-                                }
-                              }
-                              if (item != null) {
-                                return StoreAvatarFrame(
-                                  colors: item.colors,
-                                  child: ProfileAvatar(
-                                    avatarUrl: _safeHttpUrl(profile.avatarUrl),
-                                    animatedAvatarUrl:
-                                        _safeHttpUrl(profile.animatedAvatarUrl),
-                                    displayName: profile.displayName,
-                                    radius: 48,
-                                    frameScale: 1.0,
-                                    userId: profile.uid,
-                                    frameKey: profile.avatarFrameKey,
-                                  ),
-                                );
-                              }
-                            }
-
-                            return ProfileAvatar(
-                              avatarUrl: _safeHttpUrl(profile.avatarUrl),
-                              animatedAvatarUrl:
-                                  _safeHttpUrl(profile.animatedAvatarUrl),
-                              displayName: profile.displayName,
-                              radius: 48,
-                              frameScale: 1.0,
-                              userId: profile.uid,
-                              frameKey: profile.avatarFrameKey,
-                            );
-                          },
-                        ),
-                        const Positioned(
-                          right: -2,
-                          bottom: 0,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.gold,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(7),
-                              child: Icon(Icons.camera_alt_outlined,
-                                  size: 16, color: Colors.black),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
+                Expanded(
+                  child: TabBarView(
                     children: [
-                      ServerChatBadgeAboveName(
-                        uid: profile.uid,
-                        center: true,
-                        size: 30,
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ServerUsernameDisplay(
-                            uid: profile.uid,
-                            fallbackName: profile.displayName,
-                            fallbackFontSize: profile.usernameFontSize.clamp(8, 34).toDouble(),
-                            showTitle: true,
-                          ),
-                          if (profile.verified) ...[
-                            const SizedBox(width: 6),
-                            const Icon(Icons.verified,
-                                color: AppColors.primary, size: 20),
-                          ],
-                          Consumer(
-                            builder: (context, ref, _) {
-                              final hasSmiley = ref
-                                      .watch(effectiveFeaturesProvider(
-                                          profile.uid))
-                                      .valueOrNull
-                                      ?.animatedSmileyNextToName ??
-                                  false;
-                              if (!hasSmiley) return const SizedBox.shrink();
-                              return const Padding(
-                                padding: EdgeInsets.only(right: 4),
-                                child: _PulsingSmiley(),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      MembershipBadgeChip(
-                        badge: (ref
-                                    .watch(currentSubscriptionProvider)
-                                    .valueOrNull
-                                    ?.effectiveTier)
-                                ?.badge ??
-                            SubscriptionCatalog.free.badge,
-                        fontSize: 12,
-                      ),
-                      const SizedBox(height: 8),
-                      if (profile.statusText != null &&
-                          profile.statusText!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceHighlight,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            profile.statusText!,
-                            style: TextStyle(
-                              fontSize: profile.statusFontSize,
-                              color: profile.statusColor != null
-                                  ? Color(profile.statusColor!)
-                                  : AppColors.textSecondary,
-                              fontWeight: profile.statusBold
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontStyle: profile.statusItalic
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      Text(profile.email,
-                          style:
-                              const TextStyle(color: AppColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Text(
-                        'عضو منذ ${_formatJoinDate(profile.createdAt)}',
-                        style: const TextStyle(
-                            color: AppColors.textMuted, fontSize: 11.5),
-                      ),
-                      const SizedBox(height: 12),
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final statsAsync =
-                              ref.watch(currentGamificationStatsProvider);
-                          final stats = statsAsync.valueOrNull;
-                          if (stats == null) return const SizedBox.shrink();
-
-                          final unlimitedAsync =
-                              ref.watch(isUnlimitedResourcesProvider);
-                          final isUnlimited =
-                              unlimitedAsync.valueOrNull ?? false;
-
-                          final gemsLabel =
-                              isUnlimited ? '∞ جوهرة' : '${stats.gems} جوهرة';
-                          final pointsLabel =
-                              isUnlimited ? '∞ نقطة' : '${stats.points} نقطة';
-
-                          final canClaim =
-                              stats.canClaimDailyReward(DateTime.now());
-                          return Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Chip(
-                                    avatar: const Icon(Icons.military_tech,
-                                        size: 16),
-                                    label: Text('المستوى ${stats.rankLevel}'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Chip(
-                                    avatar: const Icon(Icons.diamond_outlined,
-                                        size: 16),
-                                    label: Text(gemsLabel),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Chip(
-                                    avatar: const Icon(Icons.stars, size: 16),
-                                    label: Text(pointsLabel),
-                                  ),
-                                  if (stats.dailyRewardStreak > 1) ...[
-                                    const SizedBox(width: 8),
-                                    Chip(
-                                      avatar: const Icon(
-                                          Icons.local_fire_department,
-                                          size: 16),
-                                      label: Text(
-                                          '${stats.dailyRewardStreak} يوم'),
+                      return SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            // الغلاف العلوي + الصورة الشخصية فوقه متراكبة، ثم رمز
+                            // الرتبة واسمها بخط صغير أنيق أسفل الصورة مباشرة —
+                            // تمامًا كما في المواصفة. إن لم توجد صورة غلاف
+                            // ومُجهَّزة خلفية متحركة من المتجر، تُعرض بدلًا من
+                            // اللون الثابت.
+                            GestureDetector(
+                              onTap: () => _pickAndUploadProfileImage(context, ref, profile,
+                                  cover: true),
+                              child: SizedBox(
+                                height: 140,
+                                width: double.infinity,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    (_safeHttpUrl(profile.coverUrl) != null)
+                                        ? Image.network(
+                                            _safeHttpUrl(profile.coverUrl)!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                const ColoredBox(color: AppColors.surface),
+                                          )
+                                        : Consumer(
+                                            builder: (context, ref, _) {
+                                              final equipped = ref
+                                                      .watch(equippedItemsProvider(
+                                                          profile.uid))
+                                                      .valueOrNull ??
+                                                  {};
+                                              final bgItemId = equipped[StoreItemCategory
+                                                  .animatedBackground.wire];
+                                              if (bgItemId == null) {
+                                                return const ColoredBox(
+                                                    color: AppColors.surface);
+                                              }
+                                              final catalogAsync =
+                                                  ref.watch(storeCatalogProvider);
+                                              StoreItemEntity? item;
+                                              for (final i in catalogAsync.valueOrNull ??
+                                                  const <StoreItemEntity>[]) {
+                                                if (i.id == bgItemId) {
+                                                  item = i;
+                                                  break;
+                                                }
+                                              }
+                                              if (item == null) {
+                                                return const ColoredBox(
+                                                    color: AppColors.surface);
+                                              }
+                                              return AnimatedGradientBackgroundGeneric(
+                                                  colors: item.colors);
+                                            },
+                                          ),
+                                    const Positioned(
+                                      left: 12,
+                                      bottom: 10,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: Icon(Icons.camera_alt_outlined, size: 18),
+                                        ),
+                                      ),
                                     ),
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  TextButton.icon(
-                                    onPressed: canClaim
-                                        ? () => ref
-                                            .read(gamificationControllerProvider
-                                                .notifier)
-                                            .claimDailyReward(profile.uid)
-                                        : null,
-                                    icon: const Icon(Icons.card_giftcard),
-                                    label: Text(
-                                      canClaim ? 'مكافأة اليوم' : 'تم الاستلام',
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const PointsStorePage()),
-                                      );
-                                    },
-                                    icon:
-                                        const Icon(Icons.shopping_bag_outlined),
-                                    label: const Text('متجر النقاط'),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const SubscriptionsPage()),
-                                      );
-                                    },
-                                    icon: const Icon(
-                                        Icons.workspace_premium_outlined),
-                                    label: const Text('العضويات'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // المستخدمون المحظورون، ومن زار ملفي.
-                      const SizedBox(height: 16),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.lightbulb_outline),
-                            label: const Text('اقترح فكرة'),
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SubmitFeedbackPage(),
-                              ),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.donut_large),
-                            label: const Text('عجلة الحظ'),
-                            onPressed: () => MysterySpinDialog.show(
-                              context,
-                              profile.uid,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (profile.profileMusicUrl != null &&
-                          profile.profileMusicUrl!.isNotEmpty)
-                        Consumer(
-                          builder: (context, ref, _) {
-                            final hasMusic = ref
-                                    .watch(
-                                        effectiveFeaturesProvider(profile.uid))
-                                    .valueOrNull
-                                    ?.profileMusic ??
-                                false;
-                            if (!hasMusic) return const SizedBox.shrink();
-                            return Column(
-                              children: [
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text('موسيقى البروفايل',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall),
                                 ),
-                                const SizedBox(height: 8),
-                                _ProfileMusicPlayer(
-                                    url: profile.profileMusicUrl!),
-                              ],
-                            );
-                          },
-                        ),
-                      const SizedBox(height: 16),
-                      if (profile.bio.isNotEmpty) ...[
-                        Text(profile.bio, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                      ],
-                      if (profile.profession != null)
-                        _InfoRow(
-                            icon: Icons.work_outline,
-                            text: profile.profession!),
-                      if (profile.city != null || profile.country != null)
-                        _InfoRow(
-                          icon: Icons.location_on_outlined,
-                          text: [profile.city, profile.country]
-                              .where((e) => e != null)
-                              .join('، '),
-                        ),
-                      if (profile.experiences.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text('الخبرات',
-                              style: Theme.of(context).textTheme.titleSmall),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: profile.experiences
-                              .map((e) => Chip(label: Text(e)))
-                              .toList(),
-                        ),
-                      ],
-                      if (profile.socialLinks.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          children: profile.socialLinks
-                              .map((s) => ActionChip(
-                                    avatar: const Icon(Icons.link, size: 16),
-                                    label: Text(s.platform),
-                                    onPressed: () => _openSocialLink(
-                                      context,
-                                      s.url,
+                              ),
+                            ),
+                            Transform.translate(
+                              offset: const Offset(0, -40),
+                              child: GestureDetector(
+                                onTap: () => _pickAndUploadProfileImage(
+                                    context, ref, profile,
+                                    cover: false),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Consumer(
+                                      builder: (context, ref, _) {
+                                        final equipped = ref
+                                                .watch(equippedItemsProvider(profile.uid))
+                                                .valueOrNull ??
+                                            {};
+                                        final equippedFrameId =
+                                            equipped[StoreItemCategory.avatarFrame.wire];
+                      
+                                        // إطار المتجر المُشترى (البسيط الملوّن) له الأولوية
+                                        // فقط إن لم يكن هناك إطار فني حديث (avatarFrameKey)
+                                        // مُفعَّلًا؛ غير ذلك يظهر الإطاران معًا (الدائرة
+                                        // الملونة القديمة خلف الإطار الفني الجديد).
+                                        final hasModernFrame = profile.avatarFrameKey != null &&
+                                            profile.avatarFrameKey!.trim().isNotEmpty;
+                                        if (equippedFrameId != null && !hasModernFrame) {
+                                          final catalogAsync =
+                                              ref.watch(storeCatalogProvider);
+                                          StoreItemEntity? item;
+                                          for (final i in catalogAsync.valueOrNull ??
+                                              const <StoreItemEntity>[]) {
+                                            if (i.id == equippedFrameId) {
+                                              item = i;
+                                              break;
+                                            }
+                                          }
+                                          if (item != null) {
+                                            return StoreAvatarFrame(
+                                              colors: item.colors,
+                                              child: ProfileAvatar(
+                                                avatarUrl: _safeHttpUrl(profile.avatarUrl),
+                                                animatedAvatarUrl:
+                                                    _safeHttpUrl(profile.animatedAvatarUrl),
+                                                displayName: profile.displayName,
+                                                radius: 48,
+                                                frameScale: 1.0,
+                                                userId: profile.uid,
+                                                frameKey: profile.avatarFrameKey,
+                                              ),
+                                            );
+                                          }
+                                        }
+                      
+                                        return ProfileAvatar(
+                                          avatarUrl: _safeHttpUrl(profile.avatarUrl),
+                                          animatedAvatarUrl:
+                                              _safeHttpUrl(profile.animatedAvatarUrl),
+                                          displayName: profile.displayName,
+                                          radius: 48,
+                                          frameScale: 1.0,
+                                          userId: profile.uid,
+                                          frameKey: profile.avatarFrameKey,
+                                        );
+                                      },
                                     ),
-                                  ))
-                              .toList(),
+                                    const Positioned(
+                                      right: -2,
+                                      bottom: 0,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: AppColors.gold,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(7),
+                                          child: Icon(Icons.camera_alt_outlined,
+                                              size: 16, color: Colors.black),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Column(
+                                children: [
+                                  ServerChatBadgeAboveName(
+                                    uid: profile.uid,
+                                    center: true,
+                                    size: 30,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ServerUsernameDisplay(
+                                        uid: profile.uid,
+                                        fallbackName: profile.displayName,
+                                        fallbackFontSize: profile.usernameFontSize.clamp(8, 34).toDouble(),
+                                        showTitle: true,
+                                      ),
+                                      if (profile.verified) ...[
+                                        const SizedBox(width: 6),
+                                        const Icon(Icons.verified,
+                                            color: AppColors.primary, size: 20),
+                                      ],
+                                      Consumer(
+                                        builder: (context, ref, _) {
+                                          final hasSmiley = ref
+                                                  .watch(effectiveFeaturesProvider(
+                                                      profile.uid))
+                                                  .valueOrNull
+                                                  ?.animatedSmileyNextToName ??
+                                              false;
+                                          if (!hasSmiley) return const SizedBox.shrink();
+                                          return const Padding(
+                                            padding: EdgeInsets.only(right: 4),
+                                            child: _PulsingSmiley(),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  MembershipBadgeChip(
+                                    badge: (ref
+                                                .watch(currentSubscriptionProvider)
+                                                .valueOrNull
+                                                ?.effectiveTier)
+                                            ?.badge ??
+                                        SubscriptionCatalog.free.badge,
+                                    fontSize: 12,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (profile.statusText != null &&
+                                      profile.statusText!.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceHighlight,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        profile.statusText!,
+                                        style: TextStyle(
+                                          fontSize: profile.statusFontSize,
+                                          color: profile.statusColor != null
+                                              ? Color(profile.statusColor!)
+                                              : AppColors.textSecondary,
+                                          fontWeight: profile.statusBold
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          fontStyle: profile.statusItalic
+                                              ? FontStyle.italic
+                                              : FontStyle.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 4),
+                                  Text(profile.email,
+                                      style:
+                                          const TextStyle(color: AppColors.textSecondary)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'عضو منذ ${_formatJoinDate(profile.createdAt)}',
+                                    style: const TextStyle(
+                                        color: AppColors.textMuted, fontSize: 11.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Consumer(
+                                    builder: (context, ref, _) {
+                                      final statsAsync =
+                                          ref.watch(currentGamificationStatsProvider);
+                                      final stats = statsAsync.valueOrNull;
+                                      if (stats == null) return const SizedBox.shrink();
+                      
+                                      final unlimitedAsync =
+                                          ref.watch(isUnlimitedResourcesProvider);
+                                      final isUnlimited =
+                                          unlimitedAsync.valueOrNull ?? false;
+                      
+                                      final gemsLabel =
+                                          isUnlimited ? '∞ جوهرة' : '${stats.gems} جوهرة';
+                                      final pointsLabel =
+                                          isUnlimited ? '∞ نقطة' : '${stats.points} نقطة';
+                      
+                                      final canClaim =
+                                          stats.canClaimDailyReward(DateTime.now());
+                                      return Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Chip(
+                                                avatar: const Icon(Icons.military_tech,
+                                                    size: 16),
+                                                label: Text('المستوى ${stats.rankLevel}'),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Chip(
+                                                avatar: const Icon(Icons.diamond_outlined,
+                                                    size: 16),
+                                                label: Text(gemsLabel),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Chip(
+                                                avatar: const Icon(Icons.stars, size: 16),
+                                                label: Text(pointsLabel),
+                                              ),
+                                              if (stats.dailyRewardStreak > 1) ...[
+                                                const SizedBox(width: 8),
+                                                Chip(
+                                                  avatar: const Icon(
+                                                      Icons.local_fire_department,
+                                                      size: 16),
+                                                  label: Text(
+                                                      '${stats.dailyRewardStreak} يوم'),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              TextButton.icon(
+                                                onPressed: canClaim
+                                                    ? () => ref
+                                                        .read(gamificationControllerProvider
+                                                            .notifier)
+                                                        .claimDailyReward(profile.uid)
+                                                    : null,
+                                                icon: const Icon(Icons.card_giftcard),
+                                                label: Text(
+                                                  canClaim ? 'مكافأة اليوم' : 'تم الاستلام',
+                                                ),
+                                              ),
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            const PointsStorePage()),
+                                                  );
+                                                },
+                                                icon:
+                                                    const Icon(Icons.shopping_bag_outlined),
+                                                label: const Text('متجر النقاط'),
+                                              ),
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            const SubscriptionsPage()),
+                                                  );
+                                                },
+                                                icon: const Icon(
+                                                    Icons.workspace_premium_outlined),
+                                                label: const Text('العضويات'),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // المستخدمون المحظورون، ومن زار ملفي.
+                                  const SizedBox(height: 16),
+                                  Wrap(
+                                    alignment: WrapAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.lightbulb_outline),
+                                        label: const Text('اقترح فكرة'),
+                                        onPressed: () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const SubmitFeedbackPage(),
+                                          ),
+                                        ),
+                                      ),
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.donut_large),
+                                        label: const Text('عجلة الحظ'),
+                                        onPressed: () => MysterySpinDialog.show(
+                                          context,
+                                          profile.uid,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (profile.profileMusicUrl != null &&
+                                      profile.profileMusicUrl!.isNotEmpty)
+                                    Consumer(
+                                      builder: (context, ref, _) {
+                                        final hasMusic = ref
+                                                .watch(
+                                                    effectiveFeaturesProvider(profile.uid))
+                                                .valueOrNull
+                                                ?.profileMusic ??
+                                            false;
+                                        if (!hasMusic) return const SizedBox.shrink();
+                                        return Column(
+                                          children: [
+                                            const SizedBox(height: 16),
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text('موسيقى البروفايل',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleSmall),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ProfileMusicPlayer(
+                                                url: profile.profileMusicUrl!),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  const SizedBox(height: 16),
+                                  if (profile.bio.isNotEmpty) ...[
+                                    Text(profile.bio, textAlign: TextAlign.center),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  if (profile.profession != null)
+                                    _InfoRow(
+                                        icon: Icons.work_outline,
+                                        text: profile.profession!),
+                                  if (profile.city != null || profile.country != null)
+                                    _InfoRow(
+                                      icon: Icons.location_on_outlined,
+                                      text: [profile.city, profile.country]
+                                          .where((e) => e != null)
+                                          .join('، '),
+                                    ),
+                                  if (profile.experiences.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text('الخبرات',
+                                          style: Theme.of(context).textTheme.titleSmall),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: profile.experiences
+                                          .map((e) => Chip(label: Text(e)))
+                                          .toList(),
+                                    ),
+                                  ],
+                                  if (profile.socialLinks.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      children: profile.socialLinks
+                                          .map((s) => ActionChip(
+                                                avatar: const Icon(Icons.link, size: 16),
+                                                label: Text(s.platform),
+                                                onPressed: () => _openSocialLink(
+                                                  context,
+                                                  s.url,
+                                                ),
+                                              ))
+                                          .toList(),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 16),
+                                  AppearOfflineToggle(uid: profile.uid),
+                                  const SizedBox(height: 12),
+                                  const Divider(color: AppColors.divider, height: 32),
+                                  AccountSettingsContent(profile: profile, embedded: true),
+                                  const SizedBox(height: 24),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                      const SizedBox(height: 16),
-                      AppearOfflineToggle(uid: profile.uid),
-                      const SizedBox(height: 12),
-                      const Divider(color: AppColors.divider, height: 32),
-                      AccountSettingsContent(profile: profile, embedded: true),
-                      const SizedBox(height: 24),
+                      );,
+                      ProducerMarketProfileTab(uid: profile.uid),
                     ],
                   ),
                 ),
               ],
             ),
-          );
+          )
         },
       ),
     );

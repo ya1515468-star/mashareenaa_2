@@ -1,4 +1,3 @@
-import '../../../garment_studio/presentation/pages/garment_studio_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -15,7 +14,6 @@ import '../../../rbac/presentation/providers/rbac_provider.dart';
 import '../../../rbac/presentation/widgets/permission_gate.dart';
 import '../../../rbac/presentation/widgets/server_username_display.dart';
 import '../../../search/presentation/pages/search_page.dart';
-import '../../../subscriptions/presentation/pages/subscriptions_page.dart';
 import '../../../wallet/presentation/pages/wallet_page.dart';
 import '../widgets/quick_link_card.dart';
 
@@ -126,27 +124,15 @@ class HomeDashboardPage extends ConsumerWidget {
                 ),
                 QuickLinkCard(
                   icon: Icons.factory_outlined,
-                  label: 'Garment Hub',
+                  label: 'الورش',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const GarmentHubPage())),
-                ),
-                QuickLinkCard(
-                  icon: Icons.view_in_ar_outlined,
-                  label: 'CLO / Gerber Studio 3D',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const GarmentStudioPage())),
                 ),
                 QuickLinkCard(
                   icon: Icons.checkroom_outlined,
                   label: 'استوديو الباترون',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const SubmitPatternRequestPage())),
-                ),
-                QuickLinkCard(
-                  icon: Icons.workspace_premium_outlined,
-                  label: 'العضويات',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const SubscriptionsPage())),
                 ),
                 QuickLinkCard(
                   icon: Icons.shopping_bag_outlined,

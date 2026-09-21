@@ -42,7 +42,7 @@ class ProducerMarketRepository {
     final rows = await _supabase.from('profiles').select('id,display_name,username,avatar_url').inFilter('id', ids);
     final result = <String, String>{};
     for (final row in rows) {
-      final name = (row['display_name'] ?? row['username'] ?? 'منتج أزياء').toString();
+      final name = (row['username'] ?? row['display_name'] ?? 'منتج أزياء').toString().trim();
       result[row['id'].toString()] = name;
     }
     return result;
@@ -244,6 +244,63 @@ class ProducerMarketRepository {
   }) as Map);
 
   Future<Map<String, dynamic>> deleteReel(String reelId) async => Map<String, dynamic>.from(await _supabase.rpc('delete_producer_reel', params: {'p_reel_id': reelId}) as Map);
+
+  Future<List<Map<String, dynamic>>> myReels() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) throw Exception('AUTH_REQUIRED');
+    final rows = await _supabase
+        .from('producer_reels')
+        .select(
+          'id,owner_uid,business_id,product_id,sector_key,title,description,'
+          'video_url,thumbnail_url,duration_seconds,price_minor_units,currency,'
+          'city,tags,allow_download,is_pinned,is_published,is_blocked,'
+          'views_count,likes_count,comments_count,shares_count,saves_count,'
+          'created_at,updated_at,promotion_score,is_featured',
+        )
+        .eq('owner_uid', uid)
+        .order('created_at', ascending: false);
+    return _dedupeById(List<Map<String, dynamic>>.from(rows));
+  }
+
+  Future<Map<String, dynamic>> updateReel({
+    required String reelId,
+    required String title,
+    String? description,
+    String? videoUrl,
+    required int durationSeconds,
+    String? thumbnailUrl,
+    String? sectorKey,
+    int? priceMinorUnits,
+    String? city,
+    List<String> tags = const [],
+    required bool allowDownload,
+  }) async =>
+      Map<String, dynamic>.from(
+        await _supabase.rpc('update_producer_reel', params: {
+          'p_reel_id': reelId,
+          'p_title': title,
+          'p_description': description,
+          'p_video_url': videoUrl,
+          'p_duration_seconds': durationSeconds,
+          'p_thumbnail_url': thumbnailUrl,
+          'p_sector_key': sectorKey,
+          'p_price_minor_units': priceMinorUnits,
+          'p_city': city,
+          'p_tags': tags,
+          'p_allow_download': allowDownload,
+        }) as Map,
+      );
+
+  Future<Map<String, dynamic>> setReelPublished(
+    String reelId,
+    bool published,
+  ) async =>
+      Map<String, dynamic>.from(
+        await _supabase.rpc('set_producer_reel_published', params: {
+          'p_reel_id': reelId,
+          'p_is_published': published,
+        }) as Map,
+      );
   Future<Map<String, dynamic>> deleteTender(String tenderId) async => Map<String, dynamic>.from(await _supabase.rpc('delete_tender', params: {'p_tender_id': tenderId}) as Map);
 
   Future<List<Map<String, dynamic>>> reelRules() async => List<Map<String, dynamic>>.from(await _supabase.from('reel_membership_quotas').select('*').order('tier_id'));

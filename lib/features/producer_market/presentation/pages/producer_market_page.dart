@@ -31,6 +31,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   Map<String, dynamic> quota = {};
   bool loading = true;
   bool owner = false;
+  List<Map<String, dynamic>> garmentServices = [];
   final Map<int, VideoPlayerController> controllers = {};
   final Map<int, Future<VideoPlayerController>> controllerLoads = {};
 
@@ -115,7 +116,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
     } catch (e) {
       if (mounted) {
         setState(() => loading = false);
-        _snack('تعذر تحميل سوق المنتجين: ${_friendly(e)}');
+        _snack('تعذر تحميل الورش: ${_friendly(e)}');
       }
       return;
     }
@@ -155,6 +156,10 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
         s['overlay_gif_url'] = await repo.mediaUrl(kind: 'season', id: 'true', variant: 'overlay', path: s['overlay_gif_url']?.toString());
       }
       season = s;
+    } catch (_) {}
+
+    try {
+      garmentServices = await repo.garmentServiceCatalog();
     } catch (_) {}
 
     if (!mounted) return;
@@ -273,7 +278,16 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                       icon: const Icon(Icons.tune_rounded),
                     ),
                   const SizedBox(width: 6),
-                  IconButton.filledTonal(onPressed: _publishDialog, icon: const Icon(Icons.add_a_photo_outlined)),
+                  IconButton.filledTonal(
+                    onPressed: _showGarmentServices,
+                    icon: const Icon(Icons.home_repair_service_outlined),
+                    tooltip: 'خدمات الورش',
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton.filledTonal(
+                    onPressed: _publishDialog,
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                  ),
                 ]),
               ),
               Positioned(
@@ -283,13 +297,101 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                 child: Row(children: [
                   const Icon(Icons.auto_awesome_rounded, color: AppColors.gold, size: 17),
                   const SizedBox(width: 6),
-                  Text('سوق المنتجين • ريلز الألبسة', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontWeight: FontWeight.w700, fontSize: 12)),
+                  Text('الورش • ريلز الألبسة والخدمات', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontWeight: FontWeight.w700, fontSize: 12)),
                   const Spacer(),
                   Text(quota['tier']?.toString() == 'owner' ? 'المالك • بلا حدود' : 'عضوية ${quota['tier'] ?? 'free'}', style: const TextStyle(color: Colors.white60, fontSize: 11)),
                 ]),
               ),
             ]),
-      floatingActionButton: reels.isEmpty ? FloatingActionButton.extended(heroTag: 'producer_market_publish_reel', onPressed: _publishDialog, icon: const Icon(Icons.video_call_outlined), label: const Text('انشر منتجًا')) : null,
+      floatingActionButton: reels.isEmpty ? FloatingActionButton.extended(heroTag: 'producer_market_publish_reel', onPressed: _publishDialog, icon: const Icon(Icons.video_call_outlined), label: const Text('انشر في الورش')) : null,
+    );
+  }
+
+  Future<void> _showGarmentServices() async {
+    final services = List<Map<String, dynamic>>.from(garmentServices);
+    if (!mounted) return;
+    if (services.isEmpty) {
+      _snack('لا توجد خدمات ألبسة فعالة على الخادم حاليًا.');
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * .82,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(18, 6, 18, 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'خدمات الورش والألبسة',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 18),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'المصدر الخادمي الفعلي — كل الخدمات النشطة تظهر هنا.',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
+                  itemCount: services.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, index) {
+                    final service = services[index];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.gold.withValues(alpha: .16),
+                          child: const Icon(
+                            Icons.checkroom_outlined,
+                            color: AppColors.gold,
+                          ),
+                        ),
+                        title: Text(
+                          service['name_ar']?.toString() ??
+                              service['service_key']?.toString() ??
+                              'خدمة',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: Text(
+                          service['description_ar']?.toString() ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          service['sector_key']?.toString() ?? '',
+                          style: const TextStyle(
+                            color: AppColors.goldMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -317,7 +419,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   Future<void> _share(int i) async {
     try {
       final url = await repo.mediaUrl(kind: 'reel', id: reels[i]['id'].toString(), path: reels[i]['video_url']?.toString());
-      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من سوق المنتجين في مشاريعنا:\n$url'));
+      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من الورش في مشاريعنا:\n$url'));
       await repo.interact(reels[i]['id'].toString(), 'share');
     } catch (e) {
       _snack(_friendly(e));
@@ -428,7 +530,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) {
         return AlertDialog(
-          title: const Row(children: [Icon(Icons.movie_creation_outlined, color: AppColors.gold), SizedBox(width: 8), Text('نشر ريلز للمنتج')]),
+          title: const Row(children: [Icon(Icons.movie_creation_outlined, color: AppColors.gold), SizedBox(width: 8), Text('نشر ريلز في الورش')]),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text('الحصة: ${quota['remaining'] ?? 0} / ${quota['total'] ?? 0}  •  الحد: ${quota['max_duration_seconds'] ?? 0}ث', style: Theme.of(ctx).textTheme.bodySmall),
@@ -522,7 +624,7 @@ class _SeasonOverlay extends StatelessWidget {
   const _SeasonOverlay({required this.season});
   @override
   Widget build(BuildContext context) {
-    final title = season['title']?.toString() ?? 'سوق المنتجين';
+    final title = season['title']?.toString() ?? 'الورش';
     final date = season['show_date'] == false ? '' : (season['date_text']?.toString() ?? '');
     final bg = season['background_url']?.toString();
     final gif = season['overlay_gif_url']?.toString();
@@ -833,4 +935,4 @@ class _ReelPageState extends State<_ReelPage> {
 
 class _ActionButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback onTap; final Color? color; const _ActionButton({required this.icon, required this.label, required this.onTap, this.color}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 9), child: Column(children: [IconButton.filledTonal(onPressed: onTap, icon: Icon(icon, color: color, size: 23)), Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])); }
 class _Pill extends StatelessWidget { final IconData icon; final String text; const _Pill({required this.icon, required this.text}); @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white12)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 12), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11))])); }
-class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('سوق المنتجين', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }
+class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('الورش', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }

@@ -13,6 +13,7 @@ import 'admin_users_tab.dart';
 import 'admin_virtual_presence_tab.dart';
 import 'admin_platform_requests_tab.dart';
 import 'profile_cosmetic_admin_tab.dart';
+import '../../../producer_market/presentation/pages/producer_market_admin_page.dart';
 import 'admin_login_announcement_tab.dart';
 import 'admin_chat_badges_tab.dart';
 import 'admin_user_titles_tab.dart';
@@ -37,7 +38,7 @@ class AdminDashboardPage extends ConsumerWidget {
         ),
       ),
       child: DefaultTabController(
-        length: 16,
+        length: 17,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('لوحة الإدارة'),
@@ -60,6 +61,7 @@ class AdminDashboardPage extends ConsumerWidget {
                 Tab(text: 'شارة العضو'),
                 Tab(text: 'ألقاب المستخدمين'),
                 Tab(text: 'حيوانات فوق الاسم'),
+                Tab(icon: Icon(Icons.home_repair_service_outlined), text: 'إدارة الورش'),
               ],
             ),
           ),
@@ -81,6 +83,7 @@ class AdminDashboardPage extends ConsumerWidget {
               AdminChatBadgesTab(),
               AdminUserTitlesTab(),
               NameAnimationAdminTab(),
+              ProducerMarketAdminPage(),
             ],
           ),
         ),

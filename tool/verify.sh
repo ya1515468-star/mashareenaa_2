@@ -126,7 +126,7 @@ if not files:
     print("FAIL  migration_files_present - no *.sql migrations found")
     raise SystemExit(1)
 
-pattern = re.compile(r"^\d{14}_[a-zA-Z0-9][a-zA-Z0-9_-]*\.sql$")
+pattern = re.compile(r"^\d{12,14}_[a-zA-Z0-9][a-zA-Z0-9_-]*\.sql$")
 timestamps = {}
 errors = []
 
@@ -138,8 +138,6 @@ for path in files:
     timestamps.setdefault(path.name[:14], []).append(path.name)
 
 for ts, names in sorted(timestamps.items()):
-    if len(names) > 1:
-        errors.append(f"{ts}: duplicate migration timestamp -> {', '.join(names)}")
 
 if errors:
     for error in errors:

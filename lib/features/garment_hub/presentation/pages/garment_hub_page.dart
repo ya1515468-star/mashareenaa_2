@@ -27,36 +27,49 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
   }
 
   Future<void> _load() async {
-    try {
-      final result = await Future.wait([
-        repo.garmentServiceCatalog(),
-        repo.garmentPublishedServices(),
-        Supabase.instance.client
-            .from('garment_businesses')
-            .select(
-              'id,owner_uid,business_name,sector_key,description,city,is_verified,'
-              'is_published,views_count,created_at,updated_at',
-            )
-            .eq('is_published', true)
-            .order('created_at', ascending: false)
-            .limit(100),
-      ]);
-
-      if (!mounted) return;
+    if (mounted) {
       setState(() {
-        services = List<Map<String, dynamic>>.from(result[0] as List);
-        publishedServices = List<Map<String, dynamic>>.from(result[1] as List);
-        businesses = List<Map<String, dynamic>>.from(result[2] as List);
-        loading = false;
+        loading = true;
         error = null;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        error = e.toString();
-      });
     }
+
+    List<Map<String, dynamic>> nextServices = const [];
+    List<Map<String, dynamic>> nextPublishedServices = const [];
+    List<Map<String, dynamic>> nextBusinesses = const [];
+    final failures = <Object>[];
+
+    // Each section talks to the canonical production RPC independently.
+    // One failed endpoint must not hide valid data returned by the others.
+    try {
+      nextServices = await repo.garmentServiceCatalog();
+    } catch (e) {
+      failures.add(e);
+    }
+
+    try {
+      nextPublishedServices = await repo.garmentPublishedServices();
+    } catch (e) {
+      failures.add(e);
+    }
+
+    try {
+      nextBusinesses = await repo.garmentDirectory(limit: 100);
+    } catch (e) {
+      failures.add(e);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      services = nextServices;
+      publishedServices = nextPublishedServices;
+      businesses = nextBusinesses;
+      // Show a blocking error only when every canonical source failed.
+      error = failures.length == 3
+          ? 'تعذر تحميل بيانات الورش من الخادم: ' + failures.first.toString()
+          : null;
+      loading = false;
+    });
   }
 
   IconData _iconFor(String? key) {

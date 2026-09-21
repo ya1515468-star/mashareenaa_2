@@ -63,9 +63,7 @@ class _ProducerMarketProfileTabState
       builder: (dialogContext) => AlertDialog(
         title: const Text('حذف منشور الورش'),
         content: Text(
-          'سيتم حذف «' +
-              (reel['title'] ?? 'الفيديو').toString() +
-              '» نهائيًا من منشوراتك. هل تريد المتابعة؟',
+          'سيتم حذف «${reel['title'] ?? 'الفيديو'}» نهائيًا من منشوراتك. هل تريد المتابعة؟',
         ),
         actions: [
           TextButton(

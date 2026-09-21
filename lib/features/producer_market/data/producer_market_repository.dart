@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import '../../../core/services/supabase_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';

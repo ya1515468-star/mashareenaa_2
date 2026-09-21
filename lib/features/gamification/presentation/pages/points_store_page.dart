@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/media_upload_service.dart';
 
@@ -44,7 +45,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
     try {
       await _db.rpc('purchase_currency_package', params: {
         'p_package_id': row['id'],
-        'p_request_id': 'buy_' + DateTime.now().microsecondsSinceEpoch.toString(),
+        'p_request_id': const Uuid().v4(),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم شراء الباقة وإضافة الرصيد')));

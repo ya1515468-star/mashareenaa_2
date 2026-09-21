@@ -75,6 +75,7 @@ class ProfileEntity extends Equatable {
   final int? profileMusicSizeBytes;
   final String? country;
   final String? city;
+  final String? address;
   final String? profession;
   final List<String> experiences;
   final List<SocialLink> socialLinks;
@@ -141,6 +142,7 @@ class ProfileEntity extends Equatable {
     this.profileMusicSizeBytes,
     this.country,
     this.city,
+    this.address,
     this.profession,
     this.experiences = const [],
     this.socialLinks = const [],
@@ -181,6 +183,7 @@ class ProfileEntity extends Equatable {
     int? profileMusicSizeBytes,
     String? country,
     String? city,
+    String? address,
     String? profession,
     List<String>? experiences,
     List<SocialLink>? socialLinks,
@@ -222,6 +225,7 @@ class ProfileEntity extends Equatable {
           profileMusicSizeBytes ?? this.profileMusicSizeBytes,
       country: country ?? this.country,
       city: city ?? this.city,
+      address: address ?? this.address,
       profession: profession ?? this.profession,
       experiences: experiences ?? this.experiences,
       socialLinks: socialLinks ?? this.socialLinks,
@@ -266,6 +270,7 @@ class ProfileEntity extends Equatable {
         profileMusicSizeBytes,
         country,
         city,
+        address,
         profession,
         experiences,
         socialLinks,

@@ -19,6 +19,7 @@ class ServerChatInlineMessage extends ConsumerWidget {
   final String fallbackName;
   final String text;
   final Color messageColor;
+  final bool showSenderName;
   final Color? mentionColor;
   final VoidCallback? onNameTap;
   final double nameFontSize;
@@ -43,6 +44,7 @@ class ServerChatInlineMessage extends ConsumerWidget {
     this.mentionNames = const <String>{},
     this.showMentionBadge = false,
     this.backgroundColor,
+    this.showSenderName = true,
   });
 
   /// A user can pick their own message text colour as a VIP customization,
@@ -189,11 +191,21 @@ class ServerChatInlineMessage extends ConsumerWidget {
           child: RichText(
             softWrap: true,
             text: TextSpan(children: [
-              WidgetSpan(
-                alignment: PlaceholderAlignment.middle,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [priorityBadge, const SizedBox(width: 3), inlineName]),
+              if (showSenderName)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [priorityBadge, const SizedBox(width: 3), inlineName]),
+                ),
+              _messageSpan(
+                text,
+                effectiveMessageColor,
+                messageFont,
+                messageFontSize,
+                showMentionBadge ? effectiveMentionColor : null,
+                mentionNames,
+                showMentionBadge,
+                leadingSpace: showSenderName,
               ),
-              _messageSpan(text, effectiveMessageColor, messageFont, messageFontSize, showMentionBadge ? effectiveMentionColor : null, mentionNames, showMentionBadge),
             ]),
           ),
         );
@@ -224,8 +236,9 @@ class ServerChatInlineMessage extends ConsumerWidget {
     double size,
     Color? mention,
     Set<String> mentionNames,
-    bool showMentionBadge,
-  ) {
+    bool showMentionBadge, {
+    bool leadingSpace = true,
+  }) {
     final base = TextStyle(fontSize: size, color: color, fontFamily: family, height: 1.15);
     final names = mentionNames
         .map((name) => name.trim().replaceFirst(RegExp(r'^@'), ''))
@@ -259,7 +272,9 @@ class ServerChatInlineMessage extends ConsumerWidget {
         children.addAll(localGlyphSpans(value.substring(cursor), base));
       }
     }
-    children.insert(0, TextSpan(text: ' ', style: base));
+    if (leadingSpace) {
+      children.insert(0, TextSpan(text: ' ', style: base));
+    }
     return TextSpan(children: children);
   }
 

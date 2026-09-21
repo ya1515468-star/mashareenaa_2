@@ -78,10 +78,12 @@ final roomBackgroundProvider =
 
 class ChatLobbyPage extends ConsumerStatefulWidget {
   final String roomId;
+  final ValueChanged<String>? onRoomSelected;
 
   const ChatLobbyPage({
     super.key,
     required this.roomId,
+    this.onRoomSelected,
   });
 
   @override
@@ -1907,8 +1909,27 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
   }
 
   Future<void> _openRooms() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ChatRoomsPage()));
+    final selectedRoomId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const ChatRoomsPage()),
+    );
+    if (!mounted || selectedRoomId == null || selectedRoomId.trim().isEmpty) {
+      return;
+    }
+
+    final normalizedRoomId = selectedRoomId.trim();
+    if (widget.onRoomSelected != null) {
+      // Main chat is hosted by HomeShell. Change only the room child so the
+      // global bottom navigation remains mounted and visible.
+      widget.onRoomSelected!(normalizedRoomId);
+      return;
+    }
+
+    // Backward-compatible fallback for any standalone ChatLobbyPage caller.
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ChatLobbyPage(roomId: normalizedRoomId),
+      ),
+    );
   }
 
   Future<void> _openOnline() async {

@@ -13,6 +13,9 @@ jobs:
   android-release:
     runs-on: ubuntu-latest
 
+    env:
+      ORG_GRADLE_PROJECT_ciDebugSigning: "true"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +52,6 @@ jobs:
           --obfuscate
           --split-debug-info=build/symbols
           --dart-define=MASHA_BUILD_CHANNEL=ci-test
-          -PciDebugSigning=true
 
       - name: Verify ARM64 APK signature
         run: |

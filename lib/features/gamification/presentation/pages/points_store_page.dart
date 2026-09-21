@@ -133,7 +133,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
                 onPressed: () async {
                   try {
                     await _db.rpc('admin_upsert_currency_package', params: {
-                      'p_id': row?['id']?.toString() ?? (type + '_' + DateTime.now().millisecondsSinceEpoch.toString()),
+                      'p_id': row?['id']?.toString() ?? ('${type}_${DateTime.now().millisecondsSinceEpoch}'),
                       'p_package_type': type,
                       'p_title': title.text.trim(),
                       'p_description': desc.text.trim(),
@@ -238,7 +238,7 @@ class _PackageCard extends StatelessWidget {
     final icon = row['icon_key']?.toString() ?? (gems ? '💎' : '⭐');
     final enabled = row['enabled'] == true;
     final label = gems ? 'جوهرة' : 'نقطة';
-    final subtitle = (amount + bonus).toString() + ' ' + label + ' • السعر ' + price.toString();
+    final subtitle = '${amount + bonus} $label • السعر $price';
     return Card(
       child: ListTile(
         leading: SizedBox(

@@ -366,7 +366,7 @@ class MessageBubble extends ConsumerWidget {
                       message.text.isNotEmpty &&
                       (effectiveSenderName != null ||
                           !RegExp(
-                            r'^(https?://)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)/\S+'
+                            r'^(https?://)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)/\S+',
                             caseSensitive: false,
                           ).hasMatch(message.text.trim())))
                     ServerChatInlineMessage(

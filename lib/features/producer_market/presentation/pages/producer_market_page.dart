@@ -13,6 +13,7 @@ import '../../../store/presentation/widgets/visual_effect_config.dart';
 import '../../../store/presentation/widgets/visual_effect_host.dart';
 import '../../data/producer_market_repository.dart';
 import 'producer_market_admin_page.dart';
+import '../../../rbac/presentation/widgets/server_username_display.dart';
 
 class ProducerMarketPage extends ConsumerStatefulWidget {
   final bool isActive;
@@ -116,7 +117,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
     } catch (e) {
       if (mounted) {
         setState(() => loading = false);
-        _snack('تعذر تحميل الورش: ${_friendly(e)}');
+        _snack('تعذر تحميل سوق الألبسة: ${_friendly(e)}');
       }
       return;
     }
@@ -252,6 +253,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                   itemBuilder: (_, i) => _ReelPage(
                     reel: reels[i],
                     name: names[reels[i]['owner_uid'].toString()] ?? 'منتج أزياء',
+                    ownerUid: reels[i]['owner_uid']?.toString(),
                     liked: likes.contains(reels[i]['id'].toString()),
                     saved: saves.contains(reels[i]['id'].toString()),
                     controllerFuture: controllerLoads[i],
@@ -281,7 +283,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                   IconButton.filledTonal(
                     onPressed: _showGarmentServices,
                     icon: const Icon(Icons.home_repair_service_outlined),
-                    tooltip: 'خدمات الورش',
+                    tooltip: 'خدمات الألبسة',
                   ),
                   const SizedBox(width: 6),
                   IconButton.filledTonal(
@@ -297,13 +299,13 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                 child: Row(children: [
                   const Icon(Icons.auto_awesome_rounded, color: AppColors.gold, size: 17),
                   const SizedBox(width: 6),
-                  Text('الورش • ريلز الألبسة والخدمات', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontWeight: FontWeight.w700, fontSize: 12)),
+                  Text('سوق الألبسة • ريلز المنتجات والخدمات', style: TextStyle(color: Colors.white.withValues(alpha: .82), fontWeight: FontWeight.w700, fontSize: 12)),
                   const Spacer(),
                   Text(quota['tier']?.toString() == 'owner' ? 'المالك • بلا حدود' : 'عضوية ${quota['tier'] ?? 'free'}', style: const TextStyle(color: Colors.white60, fontSize: 11)),
                 ]),
               ),
             ]),
-      floatingActionButton: reels.isEmpty ? FloatingActionButton.extended(heroTag: 'producer_market_publish_reel', onPressed: _publishDialog, icon: const Icon(Icons.video_call_outlined), label: const Text('انشر في الورش')) : null,
+      floatingActionButton: reels.isEmpty ? FloatingActionButton.extended(heroTag: 'producer_market_publish_reel', onPressed: _publishDialog, icon: const Icon(Icons.video_call_outlined), label: const Text('انشر في سوق الألبسة')) : null,
     );
   }
 
@@ -419,7 +421,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   Future<void> _share(int i) async {
     try {
       final url = await repo.mediaUrl(kind: 'reel', id: reels[i]['id'].toString(), path: reels[i]['video_url']?.toString());
-      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من الورش في مشاريعنا:\n$url'));
+      await SharePlus.instance.share(ShareParams(text: 'شاهد هذا المنتج من سوق الألبسة في مشاريعنا:\n$url'));
       await repo.interact(reels[i]['id'].toString(), 'share');
     } catch (e) {
       _snack(_friendly(e));
@@ -644,6 +646,7 @@ class _SeasonOverlay extends StatelessWidget {
 class _ReelPage extends StatefulWidget {
   final Map<String, dynamic> reel;
   final String name;
+  final String? ownerUid;
   final bool liked, saved;
   final Future<VideoPlayerController>? controllerFuture;
   final VoidCallback onLike, onSave, onShare, onDownload, onComments, onRetry;
@@ -651,6 +654,7 @@ class _ReelPage extends StatefulWidget {
   const _ReelPage({
     required this.reel,
     required this.name,
+    required this.ownerUid,
     required this.liked,
     required this.saved,
     required this.controllerFuture,
@@ -890,7 +894,16 @@ class _ReelPageState extends State<_ReelPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+              if (widget.ownerUid != null && widget.ownerUid!.trim().isNotEmpty)
+                ServerUsernameDisplay(
+                  uid: widget.ownerUid!,
+                  fallbackName: widget.name,
+                  fallbackFontSize: 17,
+                  showBadges: true,
+                  compactBadges: true,
+                )
+              else
+                Text(widget.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
               const SizedBox(height: 4),
               Text(widget.reel['title']?.toString() ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
               if ((widget.reel['description'] ?? '').toString().isNotEmpty)
@@ -935,4 +948,4 @@ class _ReelPageState extends State<_ReelPage> {
 
 class _ActionButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback onTap; final Color? color; const _ActionButton({required this.icon, required this.label, required this.onTap, this.color}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 9), child: Column(children: [IconButton.filledTonal(onPressed: onTap, icon: Icon(icon, color: color, size: 23)), Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])); }
 class _Pill extends StatelessWidget { final IconData icon; final String text; const _Pill({required this.icon, required this.text}); @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white12)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 12), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11))])); }
-class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('الورش', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }
+class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('سوق الألبسة', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }

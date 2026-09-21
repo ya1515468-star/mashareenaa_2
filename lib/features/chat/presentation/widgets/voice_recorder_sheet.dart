@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/media_upload_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,6 +32,8 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
   bool _recording = false;
+  bool _starting = false;
+  bool _sending = false;
   String? _path;
   String? _error;
 
@@ -41,6 +44,8 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
   }
 
   Future<void> _start() async {
+    if (_starting || _recording) return;
+    _starting = true;
     try {
       final hasPermission = await _recorder.hasPermission();
       if (!mounted) return;
@@ -50,17 +55,27 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
         return;
       }
 
+      // record requires a real filesystem path on Android. A relative path
+      // such as "recordings/..." can fail inside the native recorder.
+      final tempDir = await getTemporaryDirectory();
       final preferredPath =
-          'recordings/chat_${DateTime.now().microsecondsSinceEpoch}.m4a';
-      await _recorder.start(const RecordConfig(), path: preferredPath);
+          '${tempDir.path}/mashareena_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
+
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: preferredPath,
+      );
       if (!mounted) {
-        await _recorder.stop();
+        try {
+          await _recorder.cancel();
+        } catch (_) {}
         return;
       }
 
       setState(() {
         _recording = true;
         _path = null;
+        _elapsed = Duration.zero;
       });
 
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -69,28 +84,39 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'تعذّر بدء التسجيل: $e');
+    } finally {
+      _starting = false;
     }
   }
 
   Future<void> _stopAndDiscard() async {
+    if (_sending) return;
     _ticker?.cancel();
-    if (_recording) await _recorder.stop();
+    if (_recording) {
+      try {
+        await _recorder.cancel();
+      } catch (_) {}
+      _recording = false;
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _stopAndSend() async {
+    if (_sending || _starting) return;
     _ticker?.cancel();
-    String? path = _path;
-    if (_recording) {
-      path = await _recorder.stop();
-      if (!mounted) return;
-      setState(() {
-        _recording = false;
-        _path = path;
-      });
-    }
-    if (!mounted || path == null || path.isEmpty) return;
+    _sending = true;
     try {
+      String? path = _path;
+      if (_recording) {
+        path = await _recorder.stop();
+        if (!mounted) return;
+        setState(() {
+          _recording = false;
+          _path = path;
+        });
+      }
+      if (!mounted || path == null || path.isEmpty) return;
+
       final bytes = await XFile(path).readAsBytes();
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid == null) throw StateError('لا توجد جلسة مستخدم.');
@@ -118,12 +144,17 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'تعذّر رفع الرسالة الصوتية: $e');
+    } finally {
+      _sending = false;
     }
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    if (_recording || _starting) {
+      unawaited(_recorder.cancel().catchError((_) {}));
+    }
     _recorder.dispose();
     super.dispose();
   }

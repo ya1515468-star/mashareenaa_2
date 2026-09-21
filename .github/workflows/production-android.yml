@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-android
+  group: production-android-optimized
   cancel-in-progress: false
 
 jobs:

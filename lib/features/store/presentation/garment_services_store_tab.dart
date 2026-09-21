@@ -367,8 +367,8 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
     final status = row['status']?.toString() ?? 'pending';
     final image = images.isEmpty ? null : images.first?.toString();
     final specs = row['specs'] is Map ? Map<String, dynamic>.from(row['specs'] as Map) : <String, dynamic>{};
-    final location = (row['city']?.toString().isNotEmpty == true) ? ' • ' + row['city'].toString() : '';
-    final details = (specs['details']?.toString().isNotEmpty == true) ? ' • ' + specs['details'].toString() : '';
+    final location = (row['city']?.toString().isNotEmpty == true) ? ' • ${row['city']}' : '';
+    final details = (specs['details']?.toString().isNotEmpty == true) ? ' • ${specs['details']}' : '';
     return Card(
       margin: const EdgeInsets.only(bottom: 9),
       child: ListTile(
@@ -382,7 +382,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
           ),
         ),
         title: Text(row['title']?.toString() ?? 'إعلان خدمة', style: const TextStyle(fontWeight: FontWeight.w900)),
-        subtitle: Text(_sectorName(row['sector_key']?.toString()) + ' • ' + status + location + details, maxLines: 3, overflow: TextOverflow.ellipsis),
+        subtitle: Text('${_sectorName(row['sector_key']?.toString())} • $status$location$details', maxLines: 3, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -456,7 +456,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                     ]),
                     TextField(controller: details, maxLines: 4, decoration: const InputDecoration(labelText: 'المواصفات والتفاصيل الإضافية')),
                     const SizedBox(height: 8),
-                    Align(alignment: Alignment.centerRight, child: Text('صور الإعلان (' + imageUrls.length.toString() + '/5)', style: const TextStyle(fontWeight: FontWeight.w800))),
+                    Align(alignment: Alignment.centerRight, child: Text('صور الإعلان (${imageUrls.length}/5)', style: const TextStyle(fontWeight: FontWeight.w800))),
                     Wrap(
                       spacing: 7,
                       runSpacing: 7,
@@ -489,7 +489,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                       onSelectionChanged: (v) => setDialog(() => currency = v.first),
                     ),
                     const SizedBox(height: 5),
-                    Text('رسم النشر: ' + cost.toString() + (currency == 'points' ? ' نقطة' : ' جوهرة')),
+                    Text('رسم النشر: $cost${currency == 'points' ? ' نقطة' : ' جوهرة'}'),
                     if (!enabled) const Text('الخدمة متوقفة أو رسمها غير مضبوط من لوحة المالك.', style: TextStyle(color: Colors.orangeAccent)),
                   ]),
                 ),

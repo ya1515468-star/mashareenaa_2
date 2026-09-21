@@ -44,46 +44,72 @@ class ProfileModel extends ProfileEntity {
   });
 
   factory ProfileModel.fromMap(String uid, Map<String, dynamic> map) {
+    final rawExperiences = map['experiences'];
+    final rawSocialLinks = map['socialLinks'];
+
+    final experiences = rawExperiences is List
+        ? rawExperiences.whereType<String>().toList(growable: false)
+        : const <String>[];
+
+    final socialLinks = rawSocialLinks is List
+        ? rawSocialLinks
+            .whereType<Map>()
+            .map((e) => SocialLink.fromMap(Map<String, dynamic>.from(e)))
+            .toList(growable: false)
+        : const <SocialLink>[];
+
+    int? parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '');
+    }
+
+    double? parseDouble(dynamic value) {
+      if (value is double) return value;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '');
+    }
+
     return ProfileModel(
       uid: uid,
-      displayName: map['displayName'] as String? ?? '',
-      email: map['email'] as String? ?? '',
-      bio: map['bio'] as String? ?? '',
-      avatarUrl: map['avatarUrl'] as String?,
-      coverUrl: map['coverUrl'] as String?,
-      statusText: map['statusText'] as String?,
-      profileMusicUrl: map['profileMusicUrl'] as String?,
-      profileMusicDurationMs: (map['profileMusicDurationMs'] as num?)?.toInt(),
-      profileMusicSizeBytes: (map['profileMusicSizeBytes'] as num?)?.toInt(),
-      country: map['country'] as String?,
-      city: map['city'] as String?,
-      profession: map['profession'] as String?,
-      experiences: List<String>.from(map['experiences'] as List? ?? []),
-      socialLinks: ((map['socialLinks'] as List?) ?? [])
-          .map((e) => SocialLink.fromMap(Map<String, dynamic>.from(e as Map)))
-          .toList(),
-      verified: map['verified'] as bool? ?? false,
-      visibility: ProfileVisibilityX.fromWire(map['visibility'] as String?),
-      accountType: AccountTypeX.fromWire(map['accountType'] as String?),
-      usernameColor: map['usernameColor'] as int?,
-      usernameFontSize: (map['usernameFontSize'] as num?)?.toDouble() ?? 12,
-      usernameFontFamily: map['usernameFontFamily'] as String? ?? '',
-      messageFontFamily: map['messageFontFamily'] as String? ?? '',
-      messageColor: (map['messageColor'] as num?)?.toInt() ?? 4294967295,
-      statusFontSize: (map['statusFontSize'] as num?)?.toDouble() ?? 12.5,
-      statusBold: map['statusBold'] as bool? ?? false,
-      statusItalic: map['statusItalic'] as bool? ?? false,
-      statusColor: map['statusColor'] as int?,
-      animatedAvatarUrl: map['animatedAvatarUrl'] as String?,
-      avatarFrameKey: map['avatarFrameKey'] as String?,
-      usernameTemplateKey: map['usernameTemplateKey'] as String?,
-      usernameEffect: map['usernameEffect'] as String? ?? 'none',
-      usernameBackgroundKey: map['usernameBackgroundKey'] as String?,
-      usernameBackgroundMode: map['usernameBackgroundMode'] as String?,
-      usernameBackgroundColor1: map['usernameBackgroundColor1'] as String?,
-      usernameBackgroundColor2: map['usernameBackgroundColor2'] as String?,
-      usernameBackgroundOpacity: (map['usernameBackgroundOpacity'] as num?)?.toDouble() ?? .82,
-      usernameBackgroundExternalEffect: map['usernameBackgroundExternalEffect'] as String?,
+      displayName: map['displayName']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      bio: map['bio']?.toString() ?? '',
+      avatarUrl: map['avatarUrl']?.toString(),
+      coverUrl: map['coverUrl']?.toString(),
+      statusText: map['statusText']?.toString(),
+      profileMusicUrl: map['profileMusicUrl']?.toString(),
+      profileMusicDurationMs: parseInt(map['profileMusicDurationMs']),
+      profileMusicSizeBytes: parseInt(map['profileMusicSizeBytes']),
+      country: map['country']?.toString(),
+      city: map['city']?.toString(),
+      profession: map['profession']?.toString(),
+      experiences: experiences,
+      socialLinks: socialLinks,
+      verified: map['verified'] == true,
+      visibility: ProfileVisibilityX.fromWire(map['visibility']?.toString()),
+      accountType: AccountTypeX.fromWire(map['accountType']?.toString()),
+      usernameColor: parseInt(map['usernameColor']),
+      usernameFontSize: parseDouble(map['usernameFontSize']) ?? 12,
+      usernameFontFamily: map['usernameFontFamily']?.toString() ?? '',
+      messageFontFamily: map['messageFontFamily']?.toString() ?? '',
+      messageColor: parseInt(map['messageColor']) ?? 4294967295,
+      statusFontSize: parseDouble(map['statusFontSize']) ?? 12.5,
+      statusBold: map['statusBold'] == true,
+      statusItalic: map['statusItalic'] == true,
+      statusColor: parseInt(map['statusColor']),
+      animatedAvatarUrl: map['animatedAvatarUrl']?.toString(),
+      avatarFrameKey: map['avatarFrameKey']?.toString(),
+      usernameTemplateKey: map['usernameTemplateKey']?.toString(),
+      usernameEffect: map['usernameEffect']?.toString() ?? 'none',
+      usernameBackgroundKey: map['usernameBackgroundKey']?.toString(),
+      usernameBackgroundMode: map['usernameBackgroundMode']?.toString(),
+      usernameBackgroundColor1: map['usernameBackgroundColor1']?.toString(),
+      usernameBackgroundColor2: map['usernameBackgroundColor2']?.toString(),
+      usernameBackgroundOpacity:
+          parseDouble(map['usernameBackgroundOpacity']) ?? .82,
+      usernameBackgroundExternalEffect:
+          map['usernameBackgroundExternalEffect']?.toString(),
       createdAt: _parseDate(map['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(map['updatedAt']) ?? DateTime.now(),
     );

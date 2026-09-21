@@ -383,7 +383,6 @@ class _PresenceLifecycleObserverState
     _callSoundSubscription?.cancel();
     _callSoundSubscription = null;
     _knownNotificationIds = <String>{};
-    _knownFriendRequestIds = <String>{};
     _knownCallIds = <String>{};
   }
 

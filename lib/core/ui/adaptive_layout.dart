@@ -130,6 +130,17 @@ class MashareenaAdaptiveShell extends StatelessWidget {
       scale: scale,
     );
 
+    // Flutter web's viewport/mouse tracking pipeline is sensitive to a
+    // transformed scrollable route surface. The auth page is a
+    // SingleChildScrollView, so keep native web constraints and hit testing
+    // while still exposing the calculated adaptive metrics.
+    if (kIsWeb) {
+      return MashareenaAdaptiveScope(
+        metrics: metrics,
+        child: child,
+      );
+    }
+
     final adaptedMedia = media.copyWith(
       size: logicalSize,
       padding: scaleInsets(media.padding),

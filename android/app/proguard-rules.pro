@@ -5,3 +5,7 @@
 -keep class io.flutter.app.** { *; }
 -dontwarn javax.annotation.**
 -dontwarn org.conscrypt.**
+
+# Flutter's deferred-components embedding references these optional Play Core classes.
+# Mashareenaa does not use deferred components, so suppress their absent-class warnings during R8.
+-dontwarn com.google.android.play.core.**

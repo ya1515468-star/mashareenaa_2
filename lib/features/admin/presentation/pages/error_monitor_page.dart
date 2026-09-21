@@ -115,6 +115,8 @@ class _ErrorMonitorPageState extends ConsumerState<ErrorMonitorPage> {
     return '''
 [${e['severity']}] ${e['category'] ?? ''}
 الرسالة: ${e['message'] ?? ''}
+المستخدم: ${e['last_user_display_name'] ?? e['last_user_username'] ?? 'غير معروف'}
+اسم الحساب: @${e['last_user_username'] ?? '—'}
 الشاشة: ${e['screen'] ?? '—'}
 المصدر: ${e['source'] ?? '—'}
 المنصة: ${e['platform'] ?? '—'}   الإصدار: ${e['app_version'] ?? '—'}
@@ -177,7 +179,7 @@ ${e['details'] ?? '—'}
       );
       if (!mounted) return;
       ref.invalidate(_incidentsProvider);
-
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم تحديث حالة الحادثة إلى $status ✓')),
         );
@@ -199,7 +201,7 @@ ${e['details'] ?? '—'}
       );
       if (!mounted) return;
       ref.invalidate(_securityAlertsProvider);
-
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم تحديث التنبيه الأمني إلى $state ✓')),
         );
@@ -220,7 +222,7 @@ ${e['details'] ?? '—'}
       if (!mounted) return;
       ref.invalidate(_flagsRawProvider);
       ref.invalidate(featureFlagsProvider);
-
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(enabled ? 'تم تفعيل الميزة ✓' : 'تم تعطيل الميزة ✓'),
           backgroundColor: Colors.green.shade700,
@@ -275,7 +277,10 @@ ${e['details'] ?? '—'}
           // ---------------- Feature switches ----------------
           const Text('مفاتيح إيقاف الميزات',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-
+          const Text(
+            'أوقف أي ميزة معطوبة فورًا دون إصدار نسخة جديدة.',
+            style: TextStyle(fontSize: 11, color: Colors.white60),
+          ),
           const SizedBox(height: 6),
           flagsAsync.when(
             loading: () => const Padding(
@@ -316,7 +321,10 @@ ${e['details'] ?? '—'}
               icon: const Icon(Icons.play_circle_outline, size: 20),
             ),
           ]),
-
+          const Text(
+            'يفتّش النظام بنفسه عن أعطال لم يصادفها أحد بعد.',
+            style: TextStyle(fontSize: 11, color: Colors.white60),
+          ),
           const SizedBox(height: 6),
           ref.watch(_diagnosticsProvider).when(
                 loading: () => const Padding(
@@ -490,7 +498,10 @@ ${e['details'] ?? '—'}
           children: [
             const Text('مركز المراقبة الخادمي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
             const SizedBox(height: 3),
-
+            const Text(
+              'الأخطاء، الحوادث، إشارات الاختراق وقواعد الإصلاح الآمن تُجمع من الخادم في سطح واحد.',
+              style: TextStyle(fontSize: 10.5, color: Colors.white54, height: 1.45),
+            ),
             const SizedBox(height: 10),
             if (incidentsAsync.isLoading || alertsAsync.isLoading || rulesAsync.isLoading)
               const LinearProgressIndicator(minHeight: 2),
@@ -644,8 +655,8 @@ ${e['details'] ?? '—'}
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              'المستخدم: ${(e['last_user_display_name'] ?? e['last_user_username'] ?? 'غير معروف').toString()}'
-              ' • @${e['last_user_username'] ?? ''} • الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
+              'المستخدم: ${e['last_user_display_name'] ?? e['last_user_username'] ?? 'غير معروف'}  •  '
+              '@${e['last_user_username'] ?? '—'}  •  الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
               '${e['platform'] ?? '—'}  •  مستخدمون: ${e['affected_users'] ?? 1}',
               style: const TextStyle(fontSize: 10, color: Colors.white54),
             ),

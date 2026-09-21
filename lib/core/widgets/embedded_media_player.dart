@@ -196,7 +196,6 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
       showControls: true,
       showFullscreenButton: true,
       mute: false,
-      privacyEnhanced: true,
       strictRelatedVideos: false,
     ),
   );

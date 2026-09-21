@@ -11,6 +11,7 @@ import '../../../../core/routing/app_route_observer.dart';
 import '../../../../core/media/media_playback_coordinator.dart';
 import '../../../store/presentation/widgets/visual_effect_config.dart';
 import '../../../store/presentation/widgets/visual_effect_host.dart';
+import '../../../garment_hub/presentation/pages/garment_hub_page.dart';
 import '../../data/producer_market_repository.dart';
 import 'producer_market_admin_page.dart';
 import '../../../rbac/presentation/widgets/server_username_display.dart';
@@ -310,112 +311,11 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
   }
 
   Future<void> _showGarmentServices() async {
-    final services = List<Map<String, dynamic>>.from(garmentServices);
     if (!mounted) return;
-    if (services.isEmpty) {
-      _snack('لا توجد خدمات ألبسة فعالة على الخادم حاليًا.');
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(sheetContext).height * .82,
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(18, 6, 18, 4),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'خدمات الورش والألبسة',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'المصدر الخادمي الفعلي — كل الخدمات النشطة تظهر هنا.',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
-                  itemCount: services.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, index) {
-                    final service = services[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.gold.withValues(alpha: .16),
-                          child: const Icon(
-                            Icons.checkroom_outlined,
-                            color: AppColors.gold,
-                          ),
-                        ),
-                        title: Text(
-                          service['name_ar']?.toString() ??
-                              service['service_key']?.toString() ??
-                              'خدمة',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          service['description_ar']?.toString() ?? '',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Text(
-                          service['sector_key']?.toString() ?? '',
-                          style: const TextStyle(
-                            color: AppColors.goldMuted,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const GarmentHubPage()),
     );
-  }
-
-  Future<void> _toggle(int i, String action) async {
-    final id = reels[i]['id'].toString();
-    final isOn = action == 'like' ? likes.contains(id) : saves.contains(id);
-    try {
-      await repo.interact(id, isOn ? 'un$action' : action);
-      if (!mounted) return;
-      setState(() {
-        if (action == 'like') {
-          isOn ? likes.remove(id) : likes.add(id);
-          final current = (reels[i]['likes_count'] as num?)?.toInt() ?? 0;
-          reels[i]['likes_count'] = (current + (isOn ? -1 : 1)).clamp(0, 1 << 30);
-        }
-        if (action == 'save') {
-          isOn ? saves.remove(id) : saves.add(id);
-        }
-      });
-    } catch (e) {
-      _snack(_friendly(e));
-    }
+    if (mounted) unawaited(_load());
   }
 
   Future<void> _share(int i) async {

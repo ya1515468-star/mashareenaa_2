@@ -147,13 +147,28 @@ class MouseTrackingGlow extends StatefulWidget {
 
 class _MouseTrackingGlowState extends State<MouseTrackingGlow> {
   Offset? _pointer;
+  Offset? _pendingPointer;
+  bool _pointerUpdateScheduled = false;
+
+  void _handlePointer(PointerEvent event) {
+    _pendingPointer = event.localPosition;
+    if (_pointerUpdateScheduled) return;
+    _pointerUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pointerUpdateScheduled = false;
+      if (!mounted) return;
+      final pending = _pendingPointer;
+      if (pending == null || pending == _pointer) return;
+      setState(() => _pointer = pending);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final gold = context.palette.accent;
     return Listener(
-      onPointerHover: (e) => setState(() => _pointer = e.localPosition),
-      onPointerMove: (e) => setState(() => _pointer = e.localPosition),
+      onPointerHover: _handlePointer,
+      onPointerMove: _handlePointer,
       child: Stack(
         children: [
           if (_pointer != null)

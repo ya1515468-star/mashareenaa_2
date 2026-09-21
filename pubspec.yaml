@@ -131,7 +131,7 @@ flutter:
 
 
   uses-material-design: true
-  # Decorative Arabic fonts — used only for username/status/message content.
+  # Decorative Arabic fonts — only the actual font files are declared here.
   fonts:
     - family: MashareenaAmiri
       fonts:
@@ -146,16 +146,11 @@ flutter:
   assets:
     - images/frame_preview_placeholder.png
     - assets/chat/3d/reply_anchor.glb
-    - assets/chat/kolobok/
     - assets/chat/kolobok/stickers/
     - assets/chat/welcome/
     - assets/audio/royal/
-    - assets/fonts/decorative/
     - assets/store_gifs/currency/
     - assets/store_gifs/glow/
     - assets/store_gifs/background/
     - assets/store_gifs/membership/
-    - assets/garment_studio/
     - assets/name_templates/
-    - assets/name_animations/
-    - assets/name_animations/animals/

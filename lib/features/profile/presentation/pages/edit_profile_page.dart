@@ -81,8 +81,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   Future<void> _pickCover() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 78,
+      maxWidth: 1800,
+      maxHeight: 1000,
+    );
     if (picked != null && mounted) {
       setState(() => _pickedCover = picked);
     }

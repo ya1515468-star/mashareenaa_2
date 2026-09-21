@@ -80,9 +80,12 @@ class MediaUploadService {
     final safeFolder = _cleanPart(folder);
     final safeUid = _cleanPart(uid);
     final safeName = _cleanFileName(fileName, ext);
-    final path = bucket == 'profile-avatars'
-        ? '$safeUid/${_uniqueName(safeName)}'
-        : '$safeFolder/$safeUid/${_uniqueName(safeName)}';
+    final objectName = _uniqueName(safeName);
+    final path = switch (bucket) {
+      'profile-avatars' => '$safeUid/$objectName',
+      'chat-media-plus' => 'chat/attachments/$safeUid/$objectName',
+      _ => '$safeFolder/$safeUid/$objectName',
+    };
     return uploadBytesAtPath(
       bytes: bytes,
       fileName: fileName,

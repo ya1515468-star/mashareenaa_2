@@ -123,6 +123,7 @@ class ProducerMarketRepository {
   }
 
   Future<String> uploadBytes({required String folder, required PlatformFile file, required String extension}) async {
+    await SupabaseService.ensureValidSession();
     final uid = _supabase.auth.currentUser?.id;
     if (uid == null) throw Exception('AUTH_REQUIRED');
     final normalizedExtension = extension.toLowerCase();
@@ -397,6 +398,7 @@ class ProducerMarketRepository {
   Future<Map<String, dynamic>> deleteWallpaper(String key) async => Map<String, dynamic>.from(await _supabase.rpc('admin_delete_chat_wallpaper', params: {'p_wallpaper_key': key}) as Map);
 
   Future<String> uploadChatWallpaper(PlatformFile file) async {
+    await SupabaseService.ensureValidSession();
     final uid = _supabase.auth.currentUser?.id;
     if (uid == null) throw Exception('AUTH_REQUIRED');
     final ext = (file.extension ?? '').toLowerCase();

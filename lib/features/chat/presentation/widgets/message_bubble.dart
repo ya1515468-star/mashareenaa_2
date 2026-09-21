@@ -388,7 +388,7 @@ class MessageBubble extends ConsumerWidget {
                               .toSet()
                           : const <String>{},
                       showSenderName: effectiveSenderName != null,
-                    );
+                    ),
                   if (!deletedForEveryone && linkPreviewEnabled && !message.type.isMedia)
                     _vipLinkPreview(message.text),
                   if (deletedForEveryone)

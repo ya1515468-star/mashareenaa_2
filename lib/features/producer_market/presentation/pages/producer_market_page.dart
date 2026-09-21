@@ -310,6 +310,28 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
     );
   }
 
+  Future<void> _toggle(int i, String action) async {
+    final id = reels[i]['id'].toString();
+    final isOn = action == 'like' ? likes.contains(id) : saves.contains(id);
+    try {
+      await repo.interact(id, isOn ? 'un' + action : action);
+      if (!mounted) return;
+      setState(() {
+        if (action == 'like') {
+          isOn ? likes.remove(id) : likes.add(id);
+          final current = (reels[i]['likes_count'] as num?)?.toInt() ?? 0;
+          reels[i]['likes_count'] =
+              (current + (isOn ? -1 : 1)).clamp(0, 1 << 30);
+        }
+        if (action == 'save') {
+          isOn ? saves.remove(id) : saves.add(id);
+        }
+      });
+    } catch (e) {
+      _snack(_friendly(e));
+    }
+  }
+
   Future<void> _showGarmentServices() async {
     if (!mounted) return;
     await Navigator.of(context).push(

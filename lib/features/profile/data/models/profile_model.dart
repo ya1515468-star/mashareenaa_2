@@ -14,6 +14,7 @@ class ProfileModel extends ProfileEntity {
     super.profileMusicSizeBytes,
     super.country,
     super.city,
+    super.address,
     super.profession,
     super.experiences,
     super.socialLinks,

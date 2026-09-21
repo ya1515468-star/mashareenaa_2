@@ -3,12 +3,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../producer_market/data/producer_market_repository.dart';
+import '../../../rbac/presentation/widgets/server_username_display.dart';
+import 'garment_service_ad_page.dart';
+import '../../../admin/presentation/pages/garment_services_admin_page.dart';
 
 class GarmentHubPage extends StatefulWidget {
   const GarmentHubPage({super.key});
 
   @override
   State<GarmentHubPage> createState() => _GarmentHubPageState();
+}
+
+class _AdPill extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _AdPill({required this.icon, required this.text});
+  @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(14)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 13), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 10.5))]));
 }
 
 class _GarmentHubPageState extends State<GarmentHubPage> {
@@ -19,6 +29,8 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
   List<Map<String, dynamic>> services = [];
   List<Map<String, dynamic>> publishedServices = [];
   List<Map<String, dynamic>> businesses = [];
+  List<Map<String, dynamic>> serviceAds = [];
+  bool serviceManager = false;
 
   @override
   void initState() {
@@ -31,6 +43,12 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       final result = await Future.wait([
         repo.garmentServiceCatalog(),
         repo.garmentPublishedServices(),
+        Supabase.instance.client
+            .from('garment_service_ads')
+            .select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at')
+            .eq('status', 'published')
+            .order('created_at', ascending: false)
+            .limit(100),
         Supabase.instance.client.rpc('has_platform_service_access', params: {'p_service_key': 'garment_market'}),
         Supabase.instance.client
             .from('garment_businesses')
@@ -47,7 +65,9 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       setState(() {
         services = List<Map<String, dynamic>>.from(result[0] as List);
         publishedServices = List<Map<String, dynamic>>.from(result[1] as List);
-        businesses = List<Map<String, dynamic>>.from(result[2] as List);
+        serviceAds = List<Map<String, dynamic>>.from(result[2] as List);
+        serviceManager = result[3] == true;
+        businesses = List<Map<String, dynamic>>.from(result[4] as List);
         loading = false;
         error = null;
       });
@@ -125,13 +145,11 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الورش'),
+        title: const Text('خدمات الألبسة'),
         actions: [
-          IconButton(
-            onPressed: loading ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'تحديث من الخادم',
-          ),
+          IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh_rounded), tooltip: 'تحديث'),
+          IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GarmentServiceAdPage())).then((_) => _load()), icon: const Icon(Icons.add_business_outlined), tooltip: 'إضافة إعلان'),
+          if (serviceManager) IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GarmentServicesAdminPage())).then((_) => _load()), icon: const Icon(Icons.settings_outlined), tooltip: 'إدارة الخدمة'),
         ],
       ),
       body: loading
@@ -178,11 +196,40 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'كل الخدمات النشطة من كتالوج الخادم تظهر هنا دون إسقاط عناصر.',
-                        style: TextStyle(color: Colors.white60, fontSize: 12),
-                      ),
                       const SizedBox(height: 12),
+                      if (serviceAds.isNotEmpty) ...[
+                        Text('إعلانات خدمات الألبسة • ${serviceAds.length}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 10),
+                        ...serviceAds.map((ad) {
+                          final images = ad['images'] is List ? List.from(ad['images'] as List) : const [];
+                          final ownerUid = ad['owner_uid']?.toString() ?? '';
+                          final rawImage = images.isNotEmpty ? images.first.toString() : '';
+                          final image = rawImage.startsWith('storage://garment-service-media/')
+                              ? Supabase.instance.client.storage.from('garment-service-media').getPublicUrl(rawImage.substring('storage://garment-service-media/'.length))
+                              : rawImage;
+                          return Card(child: Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                            if (image.startsWith('http')) ClipRRect(borderRadius: BorderRadius.circular(12), child: AspectRatio(aspectRatio: 16/8, child: Image.network(image, fit: BoxFit.cover))),
+                            const SizedBox(height: 8),
+                            if (ownerUid.isNotEmpty) ServerUsernameDisplay(uid: ownerUid, fallbackName: 'عضو', fallbackFontSize: 14),
+                            const SizedBox(height: 4),
+                            Text(ad['title']?.toString() ?? 'إعلان', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                            if ((ad['description']?.toString() ?? '').trim().isNotEmpty) Text(ad['description'].toString(), maxLines: 3, overflow: TextOverflow.ellipsis),
+                            if ((ad['address']?.toString() ?? '').trim().isNotEmpty) Text('العنوان: ${ad['address']}', style: const TextStyle(fontSize: 11)),
+                            if ((ad['phone']?.toString() ?? '').trim().isNotEmpty) Text('الهاتف: ${ad['phone']}', style: const TextStyle(fontSize: 11)),
+                            if ((ad['whatsapp']?.toString() ?? '').trim().isNotEmpty) Text('واتساب: ${ad['whatsapp']}', style: const TextStyle(fontSize: 11)),
+                            if (ad['specs'] is Map && ((ad['specs'] as Map)['details']?.toString() ?? '').trim().isNotEmpty)
+                              Text((ad['specs'] as Map)['details'].toString(), maxLines: 5, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                            const SizedBox(height: 6),
+                            Wrap(spacing: 6, runSpacing: 6, children: [
+                              if ((ad['city']?.toString() ?? '').isNotEmpty) _AdPill(icon: Icons.location_on_outlined, text: ad['city'].toString()),
+                              if ((ad['unit']?.toString() ?? '').isNotEmpty) _AdPill(icon: Icons.straighten_outlined, text: ad['unit'].toString()),
+                              if (ad['min_qty'] != null) _AdPill(icon: Icons.inventory_2_outlined, text: 'حد أدنى ${ad['min_qty']}'),
+                              if (ad['price_minor_units'] != null) _AdPill(icon: Icons.payments_outlined, text: '${ad['price_minor_units']} ${ad['currency'] ?? ''}'),
+                            ]),
+                          ])));
+                        }),
+                        const SizedBox(height: 22),
+                      ],
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),

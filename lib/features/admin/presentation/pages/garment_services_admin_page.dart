@@ -21,7 +21,7 @@ class _GarmentServicesAdminPageState extends State<GarmentServicesAdminPage> {
         db.from('garment_service_ads').select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at').order('created_at',ascending:false).limit(250),
       ]);
       if(!mounted)return;
-      setState(()=>{access=true,catalog=List<Map<String,dynamic>>.from(r[0] as List),fees=List<Map<String,dynamic>>.from(r[1] as List),ads=List<Map<String,dynamic>>.from(r[2] as List),loading=false});
+      setState(() { access=true; catalog=List<Map<String,dynamic>>.from(r[0] as List); fees=List<Map<String,dynamic>>.from(r[1] as List); ads=List<Map<String,dynamic>>.from(r[2] as List); loading=false; });
     }catch(e){if(mounted){setState(()=>loading=false);_snack(_friendly(e));}}
   }
   Future<void> _editFee(Map<String,dynamic> row) async {

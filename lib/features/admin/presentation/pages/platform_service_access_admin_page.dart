@@ -10,6 +10,7 @@ class _PlatformServiceAccessAdminPageState extends State<PlatformServiceAccessAd
   static const services=<Map<String,String>>[
     {'key':'garment_market','name':'خدمات الألبسة'},
     {'key':'producer_market','name':'سوق الألبسة'},
+    {'key':'currency_packages','name':'باقات النقاط والجواهر'},
   ];
   String service='garment_market';
   List<Map<String,dynamic>> results=[],access=[];
@@ -22,7 +23,7 @@ class _PlatformServiceAccessAdminPageState extends State<PlatformServiceAccessAd
       if(await db.rpc('is_my_platform_owner')!=true){if(mounted)setState(()=>loading=false);return;}
       final rows=await db.rpc('admin_list_platform_service_access');
       if(!mounted)return;
-      setState(()=>{owner=true,access=List<Map<String,dynamic>>.from(rows as List),loading=false});
+      setState(() { owner=true; access=List<Map<String,dynamic>>.from(rows as List); loading=false; });
     }catch(e){if(mounted){setState(()=>loading=false);_snack(_friendly(e));}}
   }
   Future<void> _search() async{
@@ -47,7 +48,7 @@ class _PlatformServiceAccessAdminPageState extends State<PlatformServiceAccessAd
     if(loading)return const Center(child:CircularProgressIndicator());
     if(!owner)return const Center(child:Text('صلاحيات الخدمات للمالك فقط.'));
     return ListView(padding:const EdgeInsets.all(14),children:[
-      DropdownButtonFormField<String>(value:service,items:[for(final s in services)DropdownMenuItem(value:s['key'],child:Text(s['name']!))],onChanged:(v)=>setState(()=>service=v??service),decoration:const InputDecoration(labelText:'الخدمة')),
+      DropdownButtonFormField<String>(value:service,items:[for(final s in services)DropdownMenuItem(value:s['key']!,child:Text(s['name']!))],onChanged:(v)=>setState(()=>service=v??service),decoration:const InputDecoration(labelText:'الخدمة')),
       const SizedBox(height:8),
       Row(children:[Expanded(child:TextField(controller:query,onSubmitted:(_)=>_search(),decoration:const InputDecoration(hintText:'اسم المستخدم أو اسم الحساب'))),const SizedBox(width:8),FilledButton(onPressed:_search,child:const Text('بحث'))]),
       const SizedBox(height:8),

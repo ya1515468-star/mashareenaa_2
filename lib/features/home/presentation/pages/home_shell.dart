@@ -268,7 +268,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           const BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined), label: 'المنصة'),
           const BottomNavigationBarItem(
-              icon: Icon(Icons.movie_creation_outlined), label: 'الورش'),
+              icon: Icon(Icons.movie_creation_outlined), label: 'سوق الألبسة'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.storefront_outlined), label: 'المتجر'),
         ],

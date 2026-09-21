@@ -4,6 +4,9 @@ on:
     branches:
       - fix/20260922-production-sync
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 permissions:
   contents: read
 jobs:

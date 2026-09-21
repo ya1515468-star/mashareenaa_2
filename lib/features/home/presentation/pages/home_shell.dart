@@ -141,7 +141,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget _chatEntryPage() {
     final roomId = _currentRoomId ?? _verifiedPublicRoomId;
     if (roomId.isNotEmpty) {
-      return ChatLobbyPage(roomId: roomId);
+      // Keep the chat room inside HomeShell so the global bottom navigation
+      // (الشات / المراقبة / المنصة / الورش / المتجر) never disappears when
+      // the user changes rooms.
+      return _ChatRoomHostPage(roomId: roomId);
     }
     return Center(
       child: Padding(
@@ -264,6 +267,49 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               icon: Icon(Icons.storefront_outlined), label: 'المتجر'),
         ],
       ),
+    );
+  }
+}
+class _ChatRoomHostPage extends StatefulWidget {
+  final String roomId;
+
+  const _ChatRoomHostPage({
+    required this.roomId,
+  });
+
+  @override
+  State<_ChatRoomHostPage> createState() => _ChatRoomHostPageState();
+}
+
+class _ChatRoomHostPageState extends State<_ChatRoomHostPage> {
+  late String _roomId;
+
+  @override
+  void initState() {
+    super.initState();
+    _roomId = widget.roomId;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChatRoomHostPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.roomId != widget.roomId) {
+      _roomId = widget.roomId;
+    }
+  }
+
+  void _selectRoom(String roomId) {
+    final normalized = roomId.trim();
+    if (normalized.isEmpty || normalized == _roomId || !mounted) return;
+    setState(() => _roomId = normalized);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChatLobbyPage(
+      key: ValueKey<String>(_roomId),
+      roomId: _roomId,
+      onRoomSelected: _selectRoom,
     );
   }
 }

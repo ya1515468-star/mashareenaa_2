@@ -383,6 +383,9 @@ class _PresenceLifecycleObserverState
     _friendSoundSubscription = null;
     _callSoundSubscription?.cancel();
     _callSoundSubscription = null;
+    _knownNotificationIds = <String>{};
+    _knownFriendRequestIds = <String>{};
+    _knownCallIds = <String>{};
   }
 
   Future<void> _startAuthenticatedRealtime(String uid) async {

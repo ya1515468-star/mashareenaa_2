@@ -110,7 +110,16 @@ class _PresenceLifecycleObserverState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _updatePresence(state == AppLifecycleState.resumed);
+    final resumed = state == AppLifecycleState.resumed;
+    if (resumed) {
+      // Refresh the Auth session immediately after a background/resume cycle.
+      // This prevents stale access tokens from breaking Storage uploads and
+      // Realtime subscriptions after a long device sleep.
+      unawaited(
+        SupabaseService.ensureValidSession().catchError((_) {}),
+      );
+    }
+    _updatePresence(resumed);
   }
 
   void _updatePresence(bool isOnline) async {

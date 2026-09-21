@@ -1,5 +1,5 @@
 name: Mashareenaa Production Android Release
-# Lean production build: release R8 shrinking + Play Store AAB + one ARM64 sideload APK + private symbols.
+# Lean production build: release R8 shrinking + Play Store AAB + genuine ARM64-only sideload APK + private symbols.
 
 on:
   workflow_dispatch:

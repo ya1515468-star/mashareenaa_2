@@ -235,7 +235,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                       ),
                       const SizedBox(height: 22),
                       Text(
-                        'الخدمات المنشورة • ' + publishedServices.length.toString(),
+                         'الخدمات المنشورة • ${publishedServices.length}',
                         style: const TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w900,
@@ -266,18 +266,13 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                                 ),
                               ),
                               subtitle: Text(
-                                (item['business_name']?.toString() ?? '') +
-                                    ' • ' +
-                                    _sectorName(
-                                      item['sector_key']?.toString() ?? '',
-                                    ),
+                                (item['business_name']?.toString() ?? '') + ' • ' +
+                                    _sectorName(item['sector_key']?.toString() ?? ''),
                               ),
                               trailing: item['price_minor_units'] == null
                                   ? null
                                   : Text(
-                                      item['price_minor_units'].toString() +
-                                          ' ' +
-                                          (item['currency']?.toString() ?? ''),
+                                      '${item['price_minor_units']} ${item['currency']?.toString() ?? ''}',
                                       style: const TextStyle(
                                         color: AppColors.gold,
                                         fontWeight: FontWeight.w800,
@@ -288,8 +283,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                         ),
                       const SizedBox(height: 22),
                       Text(
-                        'الورش والمعامل والمورّدون • ' +
-                            businesses.length.toString(),
+                        'الورش والمعامل والمورّدون • ${businesses.length}',
                         style: const TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w900,
@@ -326,11 +320,8 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                                 ),
                               ),
                               subtitle: Text(
-                                (business['city']?.toString() ?? '') +
-                                    ' • ' +
-                                    _sectorName(
-                                      business['sector_key']?.toString() ?? '',
-                                    ),
+                                (business['city']?.toString() ?? '') + ' • ' +
+                                    _sectorName(business['sector_key']?.toString() ?? ''),
                               ),
                               trailing: business['is_verified'] == true
                                   ? const Icon(

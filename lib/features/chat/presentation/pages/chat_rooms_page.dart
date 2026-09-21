@@ -42,8 +42,7 @@ class ChatRoomsPage extends ConsumerWidget {
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: Icon(
                     r['is_public'] == true ? Icons.public : Icons.lock_outline),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => ChatLobbyPage(roomId: roomId))),
+                onTap: () => Navigator.of(context).pop<String>(roomId),
               );
             },
           );

@@ -1,4 +1,6 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public, pg_catalog;
 select plan(15);
 select ok(to_regprocedure('public.send_chat_message(uuid,text,text,text,text,integer,uuid,text,uuid,jsonb)') is not null, 'public.send_chat_message signature exists');
 select ok(to_regprocedure('public.send_public_chat_message_v2(uuid,text,text,text,uuid,uuid,text,jsonb,uuid)') is not null, 'public.send_public_chat_message_v2 signature exists');

@@ -55,6 +55,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           (row['profile_music_size_bytes'] as num?)?.toInt(),
       'country': row['country']?.toString(),
       'city': row['city']?.toString(),
+      'address': row['address']?.toString(),
       'profession': row['profession']?.toString(),
       'experiences':
           row['experiences'] is List ? row['experiences'] : const <dynamic>[],
@@ -246,6 +247,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
             : currentMusicSizeBytes,
         'p_country': profile.country,
         'p_city': profile.city,
+        'p_address': profile.address,
         'p_profession': profile.profession,
         'p_experiences': profile.experiences,
         'p_social_links': profile.socialLinks.map((e) => e.toMap()).toList(),

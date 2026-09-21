@@ -72,22 +72,37 @@ class LobbyDirectoryService {
   }
 
   /// التواصل مع مدير المنصة يعتمد حصراً على حامل رتبة DRAGON.
+  /// لا نقرأ user_roles مباشرة من العميل، لأن RLS يمنع المستخدم العادي
+  /// من رؤية أدوار المستخدمين الآخرين. المصدر الموثوق هو RPC الآمن.
   static Future<String?> findPlatformOwnerUid() async {
     final db = Supabase.instance.client;
-    final roleRow = await db
-        .from('roles')
-        .select('id')
-        .eq('code', AppRoles.dragon)
-        .maybeSingle();
-    final roleId = roleRow?['id'];
-    if (roleId == null) return null;
-    final userRow = await db
-        .from('user_roles')
-        .select('user_id')
-        .eq('role_id', roleId)
-        .limit(1)
-        .maybeSingle();
-    return userRow?['user_id'] as String?;
+    try {
+      final result = await db.rpc('get_platform_owner_uid');
+      final uid = result?.toString().trim();
+      return uid == null || uid.isEmpty ? null : uid;
+    } catch (_) {
+      // Fallback عام وآمن يعتمد على بحث الملفات الشخصية العامة.
+      // نطابق اسم المستخدم canonical فقط، ولا نكشف حقولاً خاصة.
+      try {
+        final result = await db.rpc(
+          'search_public_profiles',
+          params: {'p_query': AppRoles.dragon, 'p_limit': 25},
+        );
+        if (result is List) {
+          for (final raw in result) {
+            if (raw is! Map) continue;
+            final username = raw['username']?.toString().trim().toLowerCase();
+            final uid = raw['id']?.toString().trim();
+            if (username == AppRoles.dragon && uid != null && uid.isNotEmpty) {
+              return uid;
+            }
+          }
+        }
+      } catch (_) {
+        // Caller displays the canonical "not found" message.
+      }
+      return null;
+    }
   }
 
   /// "العرش الملكي للعضويات المدفوعة" — أعلى الأعضاء عضويةً حاليًا

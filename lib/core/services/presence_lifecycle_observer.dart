@@ -45,7 +45,6 @@ class _PresenceLifecycleObserverState
   Timer? _realtimeReconnectTimer;
   bool _realtimeReconnectScheduled = false;
   Set<String> _knownNotificationIds = <String>{};
-  Set<String> _knownFriendRequestIds = <String>{};
   Set<String> _knownCallIds = <String>{};
   late final ChatSoundService _chatSound =
       ChatSoundService(Supabase.instance.client);

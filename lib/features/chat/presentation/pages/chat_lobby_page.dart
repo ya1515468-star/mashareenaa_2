@@ -643,14 +643,14 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                       'p_room_id': _roomId,
                     });
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (sheetContext.mounted) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
                         const SnackBar(content: Text('تم إرسال الطلب بنجاح')),
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (sheetContext.mounted) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
                         SnackBar(content: Text('تعذر إرسال بث المنصة: $e')),
                       );
                     }

@@ -1,0 +1,58 @@
+name: Mashareena Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-and-project-contracts:
+    name: Flutter + project contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Run fast verification gate
+        run: ./tool/verify.sh --skip-supabase
+
+  supabase-contracts:
+    name: Supabase pgTAP contracts
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Supabase secret
+        id: secret-check
+        run: |
+          if [[ -n "$SUPABASE_DB_URL" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Supabase CLI
+        if: steps.secret-check.outputs.configured == 'true'
+        uses: supabase/setup-cli@v1
+
+      - name: Run database contracts
+        if: steps.secret-check.outputs.configured == 'true'
+        run: ./tool/verify.sh --skip-flutter --require-supabase
+
+      - name: Skip database contracts
+        if: steps.secret-check.outputs.configured != 'true'
+        run: echo "SKIP  Supabase pgTAP contracts - SUPABASE_DB_URL secret is not configured"

@@ -1,4 +1,5 @@
 name: Mashareenaa Production Android Release
+# Release build trigger: royal chat sounds + message color pipeline (2026-09-21)
 # Lean production build: release R8 shrinking + Play Store AAB + genuine ARM64-only sideload APK + private symbols.
 
 on:

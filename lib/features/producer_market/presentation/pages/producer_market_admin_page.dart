@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../store/presentation/widgets/visual_effect_config.dart';
 import '../../../store/presentation/widgets/visual_effect_host.dart';
@@ -18,6 +19,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
   late final TabController tabs = TabController(length: 5, vsync: this);
   bool loading = true;
   bool owner = false;
+  bool garmentAccess = false;
   Map<String, dynamic> season = {};
   List<Map<String, dynamic>> reelRules = [];
   List<Map<String, dynamic>> tenderRules = [];
@@ -26,6 +28,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
   List<Map<String, dynamic>> wallpapers = [];
   List<Map<String, dynamic>> garmentServices = [];
   List<Map<String, dynamic>> publicationFees = [];
+  List<Map<String, dynamic>> garmentAds = [];
 
   @override
   void initState() {
@@ -38,8 +41,36 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
     try {
       final clientOwner = await repo.tenderQuota();
       final isOwner = clientOwner['unlimited'] == true;
+      var canManageGarment = isOwner;
+      if (!canManageGarment) {
+        try {
+          canManageGarment = await Supabase.instance.client.rpc(
+                'has_platform_service_access',
+                params: {'p_service_key': 'garment_market'},
+              ) == true;
+        } catch (_) {
+          canManageGarment = false;
+        }
+      }
+      if (!canManageGarment) {
+        if (mounted) setState(() { owner = false; garmentAccess = false; loading = false; });
+        return;
+      }
       if (!isOwner) {
-        if (mounted) setState(() { owner = false; loading = false; });
+        final results = await Future.wait([
+          repo.garmentServiceCatalog(),
+          repo.garmentPublicationFees(),
+          repo.garmentServiceAds(),
+        ]);
+        if (!mounted) return;
+        setState(() {
+          owner = false;
+          garmentAccess = true;
+          garmentServices = List<Map<String, dynamic>>.from(results[0] as List);
+          publicationFees = List<Map<String, dynamic>>.from(results[1] as List);
+          garmentAds = List<Map<String, dynamic>>.from(results[2] as List);
+          loading = false;
+        });
         return;
       }
       final results = await Future.wait([
@@ -51,10 +82,12 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
         repo.wallpapers(),
         repo.garmentServiceCatalog(),
         repo.garmentPublicationFees(),
+        repo.garmentServiceAds(),
       ]);
       if (!mounted) return;
       setState(() {
         owner = true;
+        garmentAccess = true;
         season = Map<String, dynamic>.from(results[0] as Map);
         reelRules = List<Map<String, dynamic>>.from(results[1] as List);
         tenderRules = List<Map<String, dynamic>>.from(results[2] as List);
@@ -63,6 +96,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
         wallpapers = List<Map<String, dynamic>>.from(results[5] as List);
         garmentServices = List<Map<String, dynamic>>.from(results[6] as List);
         publicationFees = List<Map<String, dynamic>>.from(results[7] as List);
+        garmentAds = List<Map<String, dynamic>>.from(results[8] as List);
         loading = false;
       });
     } catch (_) {
@@ -79,10 +113,16 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
   @override
   Widget build(BuildContext context) {
     if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!owner && garmentAccess) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('إدارة خدمات الألبسة')),
+        body: _garmentServicesAdmin(),
+      );
+    }
     if (!owner) {
       return Scaffold(
-        appBar: AppBar(title: const Text('إدارة سوق المنتجين')),
-        body: const Center(child: Text('هذه الصفحة متاحة لمالك المنصة فقط.')),
+        appBar: AppBar(title: const Text('إدارة سوق الألبسة')),
+        body: const Center(child: Text('هذه الصفحة غير متاحة لهذا الحساب.')),
       );
     }
     return Scaffold(

@@ -407,6 +407,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(
+                  controller: _addressController,
+                  label: 'العنوان',
+                  prefixIcon: Icons.home_outlined,
+                ),
+                const SizedBox(height: 16),
+                AuthTextField(
                   controller: _professionController,
                   label: 'المهنة',
                   prefixIcon: Icons.work_outline,

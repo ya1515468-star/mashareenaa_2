@@ -668,8 +668,6 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                     ],
                   ),
                 ),
-    );
-  }
       floatingActionButton: canPublish
           ? FloatingActionButton.extended(
               onPressed: _openPublishDialog,
@@ -677,5 +675,6 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
               label: const Text('إضافة إعلان'),
             )
           : null,
+    );
   }
 }

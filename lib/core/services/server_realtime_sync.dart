@@ -6,6 +6,10 @@ import '../monitoring/error_monitor.dart';
 import 'supabase_service.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 
+import '../monitoring/error_monitor.dart';
+import 'supabase_service.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+
 import '../../features/profile/presentation/providers/profile_provider.dart';
 import '../../features/rbac/presentation/widgets/server_user_identity_badges.dart';
 import '../../features/store/presentation/profile_cosmetic_store_page.dart';
@@ -62,6 +66,25 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
   }
 
   Future<void> connect() async {
+    try {
+      await SupabaseService.ensureValidSession();
+    } catch (e, stack) {
+      if (!disposed) {
+        unawaited(ErrorMonitor.report(
+          e,
+          stack: stack,
+          source: 'realtime.global_session_refresh',
+          screen: 'realtime.global',
+          severity: 'warning',
+        ));
+      }
+      return;
+    }
+    if (disposed || ref.read(authControllerProvider).valueOrNull?.uid != uid) {
+      return;
+    }
+
+    Future<void> connect() async {
     try {
       await SupabaseService.ensureValidSession();
     } catch (e, stack) {

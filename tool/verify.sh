@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-set -u
 set -o pipefail
 
-ROOT="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-cd "\$ROOT"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
 RUN_INTEGRATION=0
 SKIP_FLUTTER=0
 SKIP_SUPABASE=0
 REQUIRE_SUPABASE=0
+HAS_TEST_TARGETS=0
 FLUTTER_TEST_TARGETS=()
 
 usage() {
@@ -39,11 +39,12 @@ Supabase target selection:
 USAGE
 }
 
-while [[ \$# -gt 0 ]]; do
-  case "\$1" in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --test)
-      [[ \$# -ge 2 ]] || { echo "ERROR: --test requires a path"; exit 2; }
-      FLUTTER_TEST_TARGETS+=("\$2")
+      [[ $# -ge 2 ]] || { echo "ERROR: --test requires a path"; exit 2; }
+      FLUTTER_TEST_TARGETS+=("$2")
+      HAS_TEST_TARGETS=1
       shift 2
       ;;
     --integration)
@@ -67,7 +68,7 @@ while [[ \$# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "ERROR: unknown argument: \$1"
+      echo "ERROR: unknown argument: $1"
       usage
       exit 2
       ;;
@@ -77,38 +78,38 @@ done
 FAILED=0
 
 log_step() {
-  printf '\n[%s] %s\n' "\$1" "\$2"
+  printf '\n[%s] %s\n' "$1" "$2"
 }
 
 pass() {
-  printf 'PASS  %s\n' "\$1"
+  printf 'PASS  %s\n' "$1"
 }
 
 fail() {
-  printf 'FAIL  %s\n' "\$1"
+  printf 'FAIL  %s\n' "$1"
   FAILED=1
 }
 
 skip() {
-  printf 'SKIP  %s\n' "\$1"
+  printf 'SKIP  %s\n' "$1"
 }
 
 run_cmd() {
-  local label="\$1"
+  local label="$1"
   shift
-  if "\$@"; then
-    pass "\$label"
+  if "$@"; then
+    pass "$label"
   else
-    fail "\$label"
+    fail "$label"
   fi
 }
 
 check_command() {
-  command -v "\$1" >/dev/null 2>&1
+  command -v "$1" >/dev/null 2>&1
 }
 
 migration_sanity() {
-  python3 - "\$ROOT" <<'PY'
+  python3 - "$ROOT" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -134,8 +135,7 @@ for path in files:
         errors.append(f"{path.name}: invalid migration filename")
     if path.stat().st_size == 0:
         errors.append(f"{path.name}: empty migration")
-    ts = path.name[:14]
-    timestamps.setdefault(ts, []).append(path.name)
+    timestamps.setdefault(path.name[:14], []).append(path.name)
 
 for ts, names in sorted(timestamps.items()):
     if len(names) > 1:
@@ -161,37 +161,30 @@ supabase_contracts() {
     return 0
   fi
 
-  local target_args=()
-  if [[ -n "\${SUPABASE_DB_URL:-}" ]]; then
-    target_args=(--db-url "\$SUPABASE_DB_URL")
-  elif [[ -f "\$ROOT/supabase/config.toml" ]]; then
-    target_args=(--linked)
-  else
+  if [[ ! -d "$ROOT/supabase/tests/database" ]]; then
     if (( REQUIRE_SUPABASE )); then
-      echo "FAIL  supabase_target - set SUPABASE_DB_URL or add supabase/config.toml"
+      echo "FAIL  supabase_test_files - directory missing"
       return 1
     fi
-    skip "Supabase target unavailable (set SUPABASE_DB_URL for remote pgTAP)"
-    return 0
-  fi
-
-  if ! find "\$ROOT/supabase/tests/database" -maxdepth 1 -type f \( -name '*.sql' -o -name '*.pg' \) | grep -q .; then
-    if (( REQUIRE_SUPABASE )); then
-      echo "FAIL  supabase_test_files - no pgTAP contract tests found"
-      return 1
-    fi
-    skip "No Supabase pgTAP test files"
+    skip "No Supabase pgTAP test directory"
     return 0
   fi
 
   log_step "SUPABASE" "Run pgTAP contracts"
-  if supabase test db "\$ROOT/supabase/tests/database" "\${target_args[@]}"; then
-    pass "Supabase pgTAP contracts"
-  else
-    fail "Supabase pgTAP contracts"
-  fi
+  SUPABASE_DB_URL="\${SUPABASE_DB_URL:-}"
+  if [[ -n "$SUPABASE_DB_URL" ]]; then
+    if supabase test db "$ROOT/supabase/tests/database" --db-url "$SUPABASE_DB_URL"; then
+      pass "Supabase pgTAP contracts (remote)"
+    else
+      fail "Supabase pgTAP contracts (remote)"
+    fi
+  elif [[ -f "$ROOT/supabase/config.toml" ]]; then
+    if supabase test db "$ROOT/supabase/tests/database" --linked; then
+      pass "Supabase pgTAP contracts (linked)"
+    else
+      fail "Supabase pgTAP contracts (linked)"
+    fi
 
-  if [[ -f "\$ROOT/supabase/config.toml" ]]; then
     log_step "SUPABASE" "Check linked migration state"
     if supabase migration list --linked; then
       pass "Supabase migration list"
@@ -199,7 +192,11 @@ supabase_contracts() {
       fail "Supabase migration list"
     fi
   else
-    skip "Linked migration list (no supabase/config.toml)"
+    if (( REQUIRE_SUPABASE )); then
+      echo "FAIL  supabase_target - set SUPABASE_DB_URL or add supabase/config.toml"
+      return 1
+    fi
+    skip "Supabase target unavailable (set SUPABASE_DB_URL for remote pgTAP)"
   fi
 }
 
@@ -208,11 +205,7 @@ echo "MASHAREENA VERIFICATION"
 echo "========================================"
 
 log_step "PROJECT" "Migration-file sanity"
-if migration_sanity; then
-  :
-else
-  FAILED=1
-fi
+migration_sanity || FAILED=1
 
 if (( ! SKIP_FLUTTER )); then
   if ! check_command flutter; then
@@ -225,7 +218,7 @@ if (( ! SKIP_FLUTTER )); then
     run_cmd "flutter analyze" flutter analyze
 
     log_step "FLUTTER" "Unit/widget tests"
-    if (( \${#FLUTTER_TEST_TARGETS[@]} > 0 )); then
+    if (( HAS_TEST_TARGETS )); then
       run_cmd "Flutter targeted tests" flutter test "\${FLUTTER_TEST_TARGETS[@]}"
     else
       run_cmd "Flutter full unit/widget suite" flutter test
@@ -235,9 +228,9 @@ else
   skip "Flutter checks disabled"
 fi
 
-if [[ -f "\$ROOT/scripts/verify_execution_contract.py" ]]; then
+if [[ -f "$ROOT/scripts/verify_execution_contract.py" ]]; then
   log_step "PROJECT" "Existing execution contract"
-  run_cmd "scripts/verify_execution_contract.py" python3 "\$ROOT/scripts/verify_execution_contract.py"
+  run_cmd "scripts/verify_execution_contract.py" python3 "$ROOT/scripts/verify_execution_contract.py"
 else
   skip "Existing execution contract script not present"
 fi
@@ -253,7 +246,7 @@ if (( RUN_INTEGRATION )); then
     skip "Integration test blocked because an earlier gate failed"
   elif ! check_command flutter; then
     fail "Integration test - Flutter CLI unavailable"
-  elif [[ ! -d "\$ROOT/integration_test" ]]; then
+  elif [[ ! -d "$ROOT/integration_test" ]]; then
     skip "Integration test (no integration_test directory)"
   else
     log_step "DEVICE" "Integration test"

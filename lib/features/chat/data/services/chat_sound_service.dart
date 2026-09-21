@@ -20,12 +20,25 @@ enum ChatSoundEvent {
 class ChatSoundService {
   final SupabaseClient client;
   final Map<ChatSoundEvent, DateTime> _lastPlayed = <ChatSoundEvent, DateTime>{};
+  final Map<ChatSoundEvent, DateTime> _lastBurstPlayed = <ChatSoundEvent, DateTime>{};
 
   ChatSoundService(this.client);
 
   Future<void> play(ChatSoundEvent event, {String? roomId}) async {
     final uid = client.auth.currentUser?.id;
     if (uid == null) return;
+
+    // A notification can be observed both by the global listener and by an
+    // open chat/call surface at nearly the same moment. Suppress only this
+    // tiny overlap window so the same event never sounds twice, while real
+    // message bursts remain audible.
+    final now = DateTime.now();
+    final lastBurst = _lastBurstPlayed[event];
+    if (lastBurst != null &&
+        now.difference(lastBurst) < const Duration(milliseconds: 260)) {
+      return;
+    }
+    _lastBurstPlayed[event] = now;
 
     try {
       final raw = roomId == null

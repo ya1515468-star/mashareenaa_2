@@ -131,7 +131,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
       final url = await MediaUploadService(bucket: vipPlus ? 'chat-media-plus' : 'media').uploadBytes(
         bytes: bytes,
         fileName: 'voice_.m4a',
-        folder: 'chat/audio',
+        folder: 'chat/attachments',
         uid: uid,
       );
 

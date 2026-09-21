@@ -399,7 +399,6 @@ class ProducerMarketRepository {
 
   Future<String> uploadChatWallpaper(PlatformFile file) async {
     await SupabaseService.ensureValidSession();
-    await SupabaseService.ensureValidSession();
     final uid = _supabase.auth.currentUser?.id;
     if (uid == null) throw Exception('AUTH_REQUIRED');
     final ext = (file.extension ?? '').toLowerCase();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../auth/domain/entities/user_entity.dart';
@@ -76,6 +77,31 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
+                                  FutureBuilder<Map<String, dynamic>?>( 
+                                    future: Supabase.instance.client
+                                        .from('profiles')
+                                        .select('address,last_ip,last_ip_at')
+                                        .eq('id', profile.uid)
+                                        .maybeSingle(),
+                                    builder: (context, snapshot) {
+                                      final row = snapshot.data;
+                                      if (row == null) return const SizedBox.shrink();
+                                      final address = row['address']?.toString().trim() ?? '';
+                                      final ip = row['last_ip']?.toString().trim() ?? '';
+                                      final ipAt = row['last_ip_at']?.toString().trim() ?? '';
+                                      if (address.isEmpty && ip.isEmpty) return const SizedBox.shrink();
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            if (address.isNotEmpty) Text('العنوان: ' + address),
+                                            if (ip.isNotEmpty) Text(ipAt.isEmpty ? 'IP: ' + ip : 'IP: ' + ip + ' • ' + ipAt),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,

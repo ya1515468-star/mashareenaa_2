@@ -404,7 +404,7 @@ class ProducerMarketRepository {
     final bytes = file.bytes ?? await file.xFile.readAsBytes();
     if (bytes.isEmpty) throw Exception('INVALID_IMAGE');
     if (bytes.length > 6 * 1024 * 1024) throw Exception('IMAGE_TOO_LARGE');
-    final path = 'catalog/${_uuid.v4()}.$ext';
+    final path = 'catalog/$uid/${_uuid.v4()}.$ext';
     await _supabase.storage.from('chat-wallpapers').uploadBinary(path, bytes, fileOptions: FileOptions(upsert: false, contentType: _mimeFor(ext)));
     return _supabase.storage.from('chat-wallpapers').getPublicUrl(path);
   }

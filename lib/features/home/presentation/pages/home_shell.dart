@@ -144,7 +144,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       // Keep the chat room inside HomeShell so the global bottom navigation
       // (الشات / المراقبة / المنصة / الورش / المتجر) never disappears when
       // the user changes rooms.
-      return _ChatRoomHostPage(roomId: roomId);
+      return _ChatRoomHostPage(
+        roomId: roomId,
+        onRoomSelected: (selectedRoomId) {
+          if (!mounted || selectedRoomId.trim().isEmpty) return;
+          setState(() => _currentRoomId = selectedRoomId.trim());
+        },
+      );
     }
     return Center(
       child: Padding(
@@ -272,9 +278,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 }
 class _ChatRoomHostPage extends StatefulWidget {
   final String roomId;
+  final ValueChanged<String> onRoomSelected;
 
   const _ChatRoomHostPage({
     required this.roomId,
+    required this.onRoomSelected,
   });
 
   @override
@@ -302,6 +310,7 @@ class _ChatRoomHostPageState extends State<_ChatRoomHostPage> {
     final normalized = roomId.trim();
     if (normalized.isEmpty || normalized == _roomId || !mounted) return;
     setState(() => _roomId = normalized);
+    widget.onRoomSelected(normalized);
   }
 
   @override

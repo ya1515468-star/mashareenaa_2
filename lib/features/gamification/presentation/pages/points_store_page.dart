@@ -404,6 +404,7 @@ class _PackageEditorState extends State<_PackageEditor> {
 
     final ext = (file.extension ?? 'png').toLowerCase();
     final path = 'packages/${const Uuid().v4()}.$ext';
+    await SupabaseService.ensureValidSession();
     final storage =
         Supabase.instance.client.storage.from('currency-package-media');
     try {

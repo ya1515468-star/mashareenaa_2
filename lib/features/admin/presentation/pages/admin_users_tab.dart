@@ -102,6 +102,75 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                       );
                                     },
                                   ),
+                                  FutureBuilder<bool>(
+                                    future: Supabase.instance.client.rpc(
+                                      'admin_get_platform_service_access',
+                                      params: {
+                                        'p_user_id': profile.uid,
+                                        'p_service_key': 'garment_service_ads',
+                                      },
+                                    ),
+                                    builder: (context, accessSnapshot) {
+                                      final active = accessSnapshot.data == true;
+                                      return Align(
+                                        alignment: Alignment.centerRight,
+                                        child: OutlinedButton.icon(
+                                          onPressed: myUid == null
+                                              ? null
+                                              : () async {
+                                                  try {
+                                                    await Supabase.instance
+                                                        .client
+                                                        .rpc(
+                                                      'admin_set_platform_service_access',
+                                                      params: {
+                                                        'p_user_id': profile.uid,
+                                                        'p_service_key':
+                                                            'garment_service_ads',
+                                                        'p_is_active': !active,
+                                                      },
+                                                    );
+                                                    if (!context.mounted) return;
+                                                    setState(() {});
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          active
+                                                              ? 'تم سحب صلاحية سوق الألبسة'
+                                                              : 'تم منح صلاحية سوق الألبسة',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  } catch (e) {
+                                                    if (!context.mounted) return;
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                            'تعذر تغيير الصلاحية: ' +
+                                                                e.toString()),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                          icon: Icon(
+                                            active
+                                                ? Icons.lock_open_rounded
+                                                : Icons.lock_outline_rounded,
+                                          ),
+                                          label: Text(
+                                            active
+                                                ? 'سوق الألبسة • مفعل'
+                                                : 'سوق الألبسة • غير مفعل',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,

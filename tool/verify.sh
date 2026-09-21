@@ -127,7 +127,6 @@ if not files:
     raise SystemExit(1)
 
 pattern = re.compile(r"^\d{12,14}_[a-zA-Z0-9][a-zA-Z0-9_-]*\.sql$")
-timestamps = {}
 errors = []
 
 for path in files:
@@ -135,10 +134,6 @@ for path in files:
         errors.append(f"{path.name}: invalid migration filename")
     if path.stat().st_size == 0:
         errors.append(f"{path.name}: empty migration")
-    timestamps.setdefault(path.name[:14], []).append(path.name)
-
-for ts, names in sorted(timestamps.items()):
-    pass
 
 if errors:
     for error in errors:
@@ -172,13 +167,13 @@ supabase_contracts() {
   log_step "SUPABASE" "Run pgTAP contracts"
   SUPABASE_DB_URL="${SUPABASE_DB_URL:-}"
   if [[ -n "$SUPABASE_DB_URL" ]]; then
-    if supabase test db "$ROOT/supabase/tests/database" --db-url "$SUPABASE_DB_URL"; then
+    if supabase test db supabase/tests/database --db-url "$SUPABASE_DB_URL"; then
       pass "Supabase pgTAP contracts (remote)"
     else
       fail "Supabase pgTAP contracts (remote)"
     fi
   elif [[ -f "$ROOT/supabase/config.toml" ]]; then
-    if supabase test db "$ROOT/supabase/tests/database" --linked; then
+    if supabase test db supabase/tests/database --linked; then
       pass "Supabase pgTAP contracts (linked)"
     else
       fail "Supabase pgTAP contracts (linked)"

@@ -31,6 +31,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   late final TextEditingController _musicUrlController;
   late final TextEditingController _countryController;
   late final TextEditingController _cityController;
+  late final TextEditingController _addressController;
   late final TextEditingController _professionController;
   late ProfileVisibility _visibility;
   XFile? _pickedAvatar;
@@ -50,6 +51,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _countryController =
         TextEditingController(text: widget.profile.country ?? '');
     _cityController = TextEditingController(text: widget.profile.city ?? '');
+    _addressController = TextEditingController(text: widget.profile.address ?? '');
     _professionController =
         TextEditingController(text: widget.profile.profession ?? '');
     _visibility = widget.profile.visibility;
@@ -63,6 +65,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _musicUrlController.dispose();
     _countryController.dispose();
     _cityController.dispose();
+    _addressController.dispose();
     _professionController.dispose();
     super.dispose();
   }
@@ -167,6 +170,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         profileMusicUrl: _musicUrlController.text.trim(),
         country: _countryController.text.trim(),
         city: _cityController.text.trim(),
+        address: _addressController.text.trim(),
         profession: _professionController.text.trim(),
         visibility: _visibility,
         updatedAt: DateTime.now(),
@@ -394,6 +398,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   label: 'رابط موسيقى/يوتيوب للبروفايل (اختياري)',
                   prefixIcon: Icons.music_note_outlined,
                   keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                AuthTextField(
+                  controller: _addressController,
+                  label: 'العنوان',
+                  prefixIcon: Icons.home_outlined,
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(

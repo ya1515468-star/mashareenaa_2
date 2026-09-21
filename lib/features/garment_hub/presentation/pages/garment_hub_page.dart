@@ -360,7 +360,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                         label: Text(
                           images.isEmpty
                               ? 'إضافة صور'
-                              : 'الصور المضافة: ${images.length},
+                              : 'الصور المضافة: ${images.length}',
                         ),
                       ),
                     ),

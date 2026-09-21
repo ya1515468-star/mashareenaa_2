@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../profile/presentation/widgets/arabic_font_catalog.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../rbac/presentation/widgets/server_chat_inline_message.dart';
 import '../../domain/entities/chat_message_entity.dart';
 import 'emoji_picker_sheet.dart';
 import 'chat_media_content.dart';
-import '../../../../core/widgets/embedded_media_player.dart';
 import 'reply_3d_anchor.dart';
 import '../../../../core/widgets/dynamic_avatar_frame.dart';
 import 'chat_mention_badge.dart';
-import '../../../vip/presentation/widgets/vip_link_preview.dart';
-import '../../../vip/presentation/widgets/vip_favorite_button.dart';
 
 /// فقاعة الرسالة — مُعاد تصميمها بأسلوب مضغوط (صورة مصغّرة + اسم
 /// ملوَّن + رسالة، بتباعد أقل) مطابقًا للنمط البصري لتطبيقات
@@ -25,20 +21,6 @@ import '../../../vip/presentation/widgets/vip_favorite_button.dart';
 /// حيث موضع الفقاعة نفسه يكفي لتمييز رسائلك الخاصة.
 /// نفس منطق الفحص المستخدَم في server_chat_inline_message.dart للرسائل
 /// العامة، مطبَّق هنا على مسار الرسائل الخاصة الذي لم يكن محميًا إطلاقًا.
-Color _readablePrivateTextColor(Color text, Color background) {
-  double luminance(Color c) {
-    double ch(double v) => v <= 0.03928
-        ? v / 12.92
-        : ((v + 0.055) / 1.055).clamp(0.0, 1.0).toDouble();
-    return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
-  }
-  final bgLum = luminance(background);
-  final textLum = luminance(text);
-  final contrast = (textLum - bgLum).abs();
-  if (contrast > 0.35) return text;
-  return bgLum > 0.55 ? Colors.black : Colors.white;
-}
-
 class MessageBubble extends ConsumerWidget {
   final ChatMessageEntity message;
   final bool isMine;
@@ -186,31 +168,6 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _vipLinkPreview(String text) {
-    final match = RegExp(r'(https?://\S+|www\.\S+)', caseSensitive: false).firstMatch(text);
-    if (match == null) return const SizedBox.shrink();
-    return VipLinkPreview(url: match.group(0)!);
-  }
-
-  IconData _statusIcon() {
-    switch (message.status) {
-      case MessageStatus.sending:
-        return Icons.schedule;
-      case MessageStatus.sent:
-        return Icons.check;
-      case MessageStatus.delivered:
-        return Icons.done_all;
-      case MessageStatus.seen:
-        return Icons.done_all;
-      case MessageStatus.failed:
-        return Icons.error_outline;
-      case MessageStatus.edited:
-        return Icons.check;
-      case MessageStatus.deleted:
-        return Icons.block;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
@@ -235,7 +192,6 @@ class MessageBubble extends ConsumerWidget {
     // معاينة روابط وعرض وسائط أكبر من أي مُرسِل حتى لو لم يدفع، بينما
     // مُرسِل دفع فعليًا لا يحصل على أي أثر إن كان المُشاهد بلا اشتراك.
     final vip = ref.watch(profilePublicVipEffectsProvider(senderUid ?? currentUid)).valueOrNull ?? const <String, dynamic>{};
-    final linkPreviewEnabled = (vip['chat_link_preview_plus'] as Map?)?['enabled'] == true;
     final mediaPlusEnabled = (vip['chat_media_plus'] as Map?)?['enabled'] == true;
 
     final bubble = GestureDetector(
@@ -389,8 +345,6 @@ class MessageBubble extends ConsumerWidget {
                           : const <String>{},
                       showSenderName: effectiveSenderName != null,
                     ),
-                  if (!deletedForEveryone && linkPreviewEnabled && !message.type.isMedia)
-                    _vipLinkPreview(message.text),
                   if (deletedForEveryone)
                     Text('🚫 تم حذف هذه الرسالة',
                         style: TextStyle(
@@ -531,70 +485,6 @@ class MessageBubble extends ConsumerWidget {
     final m = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'م' : 'ص';
     return '$h:$m $period';
-  }
-}
-
-class _PrivateMentionText extends StatelessWidget {
-  final String text;
-  final Color textColor;
-  final Color frameColor;
-  final String? fontFamily;
-  final Set<String> mentionNames;
-  final bool showMentionBadge;
-  const _PrivateMentionText({
-    required this.text,
-    required this.textColor,
-    required this.frameColor,
-    this.fontFamily,
-    this.mentionNames = const <String>{},
-    this.showMentionBadge = false,
-  });
-  static final RegExp _mention = RegExp(r'@[\w\u0600-\u06FF._-]+');
-
-  RegExp _mentionPattern(Set<String> mentionNames) {
-    final names = mentionNames
-        .map((name) => name.trim().replaceFirst(RegExp(r'^@'), ''))
-        .where((name) => name.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
-    if (names.isEmpty) return _mention;
-    final escaped = names.map(RegExp.escape).join('|');
-    return RegExp(r'@(?:' + escaped + r')(?![\w\u0600-\u06FF._-])', caseSensitive: false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final matches = _mentionPattern(mentionNames).allMatches(text).toList();
-    if (matches.isEmpty) return Text(text, style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15));
-    final spans = <InlineSpan>[];
-    var cursor = 0;
-    for (final match in matches) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, match.start), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15)));
-      }
-      final raw = text.substring(match.start, match.end);
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: showMentionBadge
-            ? ChatMentionBadge(name: raw, fontSize: 13)
-            : Text(
-                raw,
-                style: TextStyle(
-                  color: textColor,
-                  fontFamily: fontFamily,
-                  fontSize: 14,
-                  height: 1.15,
-                ),
-              ),
-      ));
-      cursor = match.end;
-    }
-    if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15))); 
-    return RichText(
-        textAlign: TextAlign.right,
-        textDirection: TextDirection.rtl,
-        text: TextSpan(style: TextStyle(color: textColor), children: spans));
   }
 }
 

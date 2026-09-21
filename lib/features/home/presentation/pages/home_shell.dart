@@ -142,7 +142,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final roomId = _currentRoomId ?? _verifiedPublicRoomId;
     if (roomId.isNotEmpty) {
       // Keep the chat room inside HomeShell so the global bottom navigation
-      // (الشات / المراقبة / المنصة / الورش / المتجر) never disappears when
+      // (الشات / المراقبة / المنصة / سوق الألبسة / المتجر) never disappears when
       // the user changes rooms.
       return _ChatRoomHostPage(
         roomId: roomId,
@@ -268,7 +268,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           const BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined), label: 'المنصة'),
           const BottomNavigationBarItem(
-              icon: Icon(Icons.movie_creation_outlined), label: 'الورش'),
+              icon: Icon(Icons.movie_creation_outlined), label: 'سوق الألبسة'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.storefront_outlined), label: 'المتجر'),
         ],

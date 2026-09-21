@@ -76,6 +76,33 @@ final roomBackgroundProvider =
       .map((rows) => rows.isEmpty ? null : rows.first['background_url'] as String?);
 });
 
+bool _isGlobalEventLive(Map<String, dynamic> event, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final type = event['event_type']?.toString();
+  final created = DateTime.tryParse(event['created_at']?.toString() ?? '');
+  final storedExpiry =
+      DateTime.tryParse(event['expires_at']?.toString() ?? '');
+
+  // Transient visual events must never remain on screen for days because of
+  // a bad server expiry. The server now writes 15s, and the client caps the
+  // lifetime too so a future regression cannot pin the overlay.
+  const transientTypes = <String>{
+    'gift',
+    'points_transfer',
+    'gems_transfer',
+    'owner_entry',
+    'user_joined',
+  };
+  if (transientTypes.contains(type) && created != null) {
+    final clientExpiry = created.toLocal().add(const Duration(seconds: 15));
+    final expiry = storedExpiry == null
+        ? clientExpiry
+        : (storedExpiry.isBefore(clientExpiry) ? storedExpiry : clientExpiry);
+    return expiry.isAfter(current);
+  }
+  return storedExpiry == null || storedExpiry.isAfter(current);
+}
+
 class ChatLobbyPage extends ConsumerStatefulWidget {
   final String roomId;
 
@@ -129,6 +156,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
   final Set<String> _mentionUserNames = <String>{};
   final Set<String> _knownPublicMessageIds = <String>{};
   bool _publicMessageStreamInitialized = false;
+  int _messagesStreamVersion = 0;
   late final ChatSoundService _sound = ChatSoundService(_db);
   String _replyMode = 'reply';
 
@@ -218,12 +246,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
     unawaited(_loadChatTheme());
     unawaited(_loadMentionFrameColor());
 
-    _messages = _db
-        .from('public_chat_messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', _roomId)
-        .order('created_at', ascending: true)
-        .limit(150);
+    _messages = _publicMessageStream();
     _globalEvents = _db
         .from('chat_global_events')
         .stream(primaryKey: ['id'])
@@ -406,6 +429,8 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
         return 'هذه الشارة غير متاحة حاليًا؛ اختر شارة أخرى.';
       case 'FORBIDDEN':
         return 'هذه العملية غير متاحة لحسابك في هذه الغرفة.';
+      case 'CHAT_RESTRICTED':
+        return 'لا يمكنك الكتابة في هذه الغرفة حاليًا؛ على الحساب تقييد فعّال (حظر أو كتم أو طرد).';
       case 'AUTH_REQUIRED':
         return 'انتهت جلسة الدخول. سجّل الدخول ثم أعد المحاولة.';
       case 'ROOM_NOT_FOUND':
@@ -1154,6 +1179,15 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
     );
   }
 
+  Stream<List<Map<String, dynamic>>> _publicMessageStream() {
+    return _db
+        .from('public_chat_messages')
+        .stream(primaryKey: ['id'])
+        .eq('room_id', _roomId)
+        .order('created_at', ascending: true)
+        .limit(150);
+  }
+
   Future<void> _loadRoomControls() async {
     final user = _user;
     if (user == null) return;
@@ -1553,7 +1587,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                       final expires =
                           DateTime.tryParse(e['expires_at']?.toString() ?? '');
                       if (type == 'welcome_bot' && roomId != _roomId) continue;
-                      if (expires == null || expires.isAfter(now)) {
+                      if (_isGlobalEventLive(e, now: now)) {
                         latestGlobal = e;
                         break;
                       }
@@ -1571,7 +1605,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                         (created == null ||
                             created.isAfter(DateTime.now()
                                 .subtract(const Duration(days: 7)))) &&
-                        (expires == null || expires.isAfter(DateTime.now()));
+                        _isGlobalEventLive(e);
                   }).toList()
                     ..sort((a, b) =>
                         (DateTime.tryParse(a['created_at']?.toString() ?? '') ??
@@ -1585,6 +1619,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
                       ChatThemeBackground(
                         theme: ChatThemeDefinition.byId(_chatThemeId),
                         child: StreamBuilder<List<Map<String, dynamic>>>(
+                          key: ValueKey(_messagesStreamVersion),
                           stream: _messages,
                           builder: (context, snapshot) {
                             if (snapshot.hasError) {
@@ -2011,18 +2046,17 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
         .push(MaterialPageRoute(builder: (_) => const SponsoredAdsPage()));
   }
 
-  /// 4- "تحديث التطبيق او الصفحه ان علق التطبيق بسبب النت" — يعيد
-  /// الاشتراك في تيّار الرسائل من جديد ويعيد بناء الشاشة، أبسط
-  /// إجراء "تحديث يدوي" ممكن دون إعادة تشغيل التطبيق كاملًا.
+  /// 4- "تحديث التطبيق او الصفحه ان علق التطبيق بسبب النت".
+  /// نُنشئ Stream جديدًا مع مفتاح مختلف حتى يضطر StreamBuilder إلى إلغاء
+  /// الاشتراك القديم وإنشاء اشتراك Realtime جديد بدل الاكتفاء بإعادة تعيين
+  /// نفس المصدر أثناء بقاء الاشتراك السابق قائمًا.
   void _refreshLobby() {
     setState(() {
-      _messages = _db
-          .from('public_chat_messages')
-          .stream(primaryKey: ['id'])
-          .eq('room_id', _roomId)
-          .order('created_at', ascending: true)
-          .limit(150);
+      _messagesStreamVersion++;
+      _messages = _publicMessageStream();
     });
+    unawaited(_loadRoomControls());
+    unawaited(_loadRoomHeader());
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text('تم تحديث الشات'), duration: Duration(seconds: 1)),
@@ -2893,7 +2927,7 @@ class _ChatMessageRow extends ConsumerWidget {
   });
 
   static final RegExp _linkPattern = RegExp(
-      r'^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)\/\S+$',
+      r'(https?:\/\/)?(?:www\.|m\.|music\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be|tiktok\.com)\/\S+',
       caseSensitive: false);
 
   Widget _content(double smileySize) {
@@ -3283,9 +3317,30 @@ class _GlobalEventOverlayState extends State<_GlobalEventOverlay> {
     if (effect != null) {
       unawaited(playRoyalSound(_effectSoundAsset(effect)));
     }
-    final expires = DateTime.tryParse(widget.event['expires_at']?.toString() ?? '');
-    if (expires != null) {
-      final delay = expires.difference(DateTime.now());
+    final created = DateTime.tryParse(
+      widget.event['created_at']?.toString() ?? '',
+    );
+    final storedExpiry = DateTime.tryParse(
+      widget.event['expires_at']?.toString() ?? '',
+    );
+    final type = widget.event['event_type']?.toString();
+    final transient = const {
+      'gift',
+      'points_transfer',
+      'gems_transfer',
+      'owner_entry',
+      'user_joined',
+    }.contains(type);
+    final clientExpiry = created == null
+        ? null
+        : created.toLocal().add(const Duration(seconds: 15));
+    final effectiveExpiry = transient && clientExpiry != null
+        ? (storedExpiry == null || clientExpiry.isBefore(storedExpiry)
+            ? clientExpiry
+            : storedExpiry)
+        : storedExpiry;
+    if (effectiveExpiry != null) {
+      final delay = effectiveExpiry.difference(DateTime.now());
       _hideTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
         if (mounted) setState(() => _visible = false);
       });

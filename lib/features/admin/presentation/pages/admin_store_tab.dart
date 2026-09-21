@@ -330,40 +330,50 @@ class _AdminPackageDialog extends StatefulWidget {
 }
 
 class _AdminPackageDialogState extends State<_AdminPackageDialog> {
-  late final _id = TextEditingController(
-      text: widget.row?['id']?.toString() ?? '');
-  late final _title = TextEditingController(
-      text: widget.row?['title']?.toString() ?? '');
-  late final _description = TextEditingController(
-      text: widget.row?['description']?.toString() ?? '');
-  late final _amount = TextEditingController(
-      text: (((widget.row?[widget.kind == _AdminPackageKind.points
-                      ? 'points_granted'
-                      : 'amount'] as num?)
-                  ?.toInt() ??
-              0))
-          .toString());
-  late final _bonus = TextEditingController(
-      text: (((widget.row?[widget.kind == _AdminPackageKind.points
-                      ? 'bonus_points'
-                      : 'bonus_amount'] as num?)
-                  ?.toInt() ??
-              0))
-          .toString());
-  late final _price = TextEditingController(
-      text: (((widget.row?['price_minor_units'] as num?)?.toInt() ?? 0))
-          .toString());
-  late final _sort = TextEditingController(
-      text: (((widget.row?['sort_order'] as num?)?.toInt() ?? 0)).toString());
-  late final _icon = TextEditingController(
-      text: widget.row?['icon']?.toString() ??
-          widget.row?['icon_key']?.toString() ??
-          '');
-  bool enabled = widget.row?['enabled'] != false;
-  bool featured = widget.row?[
-          widget.kind == _AdminPackageKind.points ? 'is_featured' : 'featured'] ==
-      true;
+  late final TextEditingController _id;
+  late final TextEditingController _title;
+  late final TextEditingController _description;
+  late final TextEditingController _amount;
+  late final TextEditingController _bonus;
+  late final TextEditingController _price;
+  late final TextEditingController _sort;
+  late final TextEditingController _icon;
+  late bool enabled;
+  late bool featured;
   PlatformFile? file;
+
+  @override
+  void initState() {
+    super.initState();
+    final row = widget.row;
+    final kind = widget.kind;
+    _id = TextEditingController(text: row?['id']?.toString() ?? '');
+    _title = TextEditingController(text: row?['title']?.toString() ?? '');
+    _description =
+        TextEditingController(text: row?['description']?.toString() ?? '');
+    final amountKey =
+        kind == _AdminPackageKind.points ? 'points_granted' : 'amount';
+    final bonusKey =
+        kind == _AdminPackageKind.points ? 'bonus_points' : 'bonus_amount';
+    _amount = TextEditingController(
+      text: ((row?[amountKey] as num?)?.toInt() ?? 0).toString(),
+    );
+    _bonus = TextEditingController(
+      text: ((row?[bonusKey] as num?)?.toInt() ?? 0).toString(),
+    );
+    _price = TextEditingController(
+      text: ((row?['price_minor_units'] as num?)?.toInt() ?? 0).toString(),
+    );
+    _sort = TextEditingController(
+      text: ((row?['sort_order'] as num?)?.toInt() ?? 0).toString(),
+    );
+    _icon = TextEditingController(
+      text: row?['icon']?.toString() ?? row?['icon_key']?.toString() ?? '',
+    );
+    enabled = row?['enabled'] != false;
+    featured = row?[kind == _AdminPackageKind.points ? 'is_featured' : 'featured'] ==
+        true;
+  }
 
   @override
   void dispose() {
@@ -383,7 +393,7 @@ class _AdminPackageDialogState extends State<_AdminPackageDialog> {
   }
 
   Future<void> _pick() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.image,
       allowMultiple: false,
       withData: true,

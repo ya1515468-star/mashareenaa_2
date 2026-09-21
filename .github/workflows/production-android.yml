@@ -3,6 +3,8 @@ name: Mashareenaa Production Android Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "production/fix-play-core-20260921"
     tags:
       - "v*"
 

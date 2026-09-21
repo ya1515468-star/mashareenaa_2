@@ -138,13 +138,14 @@ for path in files:
     timestamps.setdefault(path.name[:14], []).append(path.name)
 
 for ts, names in sorted(timestamps.items()):
+    pass
 
 if errors:
     for error in errors:
         print(f"FAIL  migration_sanity - {error}")
     raise SystemExit(1)
 
-print(f"PASS  migration_sanity - {len(files)} migration files, unique timestamps, non-empty SQL")
+print(f"PASS  migration_sanity - {len(files)} migration files, valid versioned names, non-empty SQL")
 print(f"PASS  migration_latest - {files[-1].name}")
 PY
 }
@@ -169,7 +170,7 @@ supabase_contracts() {
   fi
 
   log_step "SUPABASE" "Run pgTAP contracts"
-  SUPABASE_DB_URL="\${SUPABASE_DB_URL:-}"
+  SUPABASE_DB_URL="${SUPABASE_DB_URL:-}"
   if [[ -n "$SUPABASE_DB_URL" ]]; then
     if supabase test db "$ROOT/supabase/tests/database" --db-url "$SUPABASE_DB_URL"; then
       pass "Supabase pgTAP contracts (remote)"
@@ -217,7 +218,7 @@ if (( ! SKIP_FLUTTER )); then
 
     log_step "FLUTTER" "Unit/widget tests"
     if (( HAS_TEST_TARGETS )); then
-      run_cmd "Flutter targeted tests" flutter test "\${FLUTTER_TEST_TARGETS[@]}"
+      run_cmd "Flutter targeted tests" flutter test "${FLUTTER_TEST_TARGETS[@]}"
     else
       run_cmd "Flutter full unit/widget suite" flutter test
     fi

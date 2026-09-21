@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../monitoring/error_monitor.dart';
+import 'supabase_service.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+
 import '../../features/profile/presentation/providers/profile_provider.dart';
 import '../../features/rbac/presentation/widgets/server_user_identity_badges.dart';
 import '../../features/store/presentation/profile_cosmetic_store_page.dart';
@@ -9,6 +13,11 @@ import '../../features/store/presentation/profile_premium_services_tab.dart';
 
 final globalServerRealtimeSyncProvider = Provider<void>((ref) {
   final client = Supabase.instance.client;
+  final authState = ref.watch(authControllerProvider);
+  final uid = authState.valueOrNull?.uid;
+  if (uid == null || uid.isEmpty) return;
+
+  var disposed = false;
   RealtimeChannel? channel;
   Timer? profileTimer;
   Timer? catalogTimer;
@@ -52,7 +61,26 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
     });
   }
 
-  final builder = client.channel('global-server-sync')
+  Future<void> connect() async {
+    try {
+      await SupabaseService.ensureValidSession();
+    } catch (e, stack) {
+      if (!disposed) {
+        unawaited(ErrorMonitor.report(
+          e,
+          stack: stack,
+          source: 'realtime.global_session_refresh',
+          screen: 'realtime.global',
+          severity: 'warning',
+        ));
+      }
+      return;
+    }
+    if (disposed || ref.read(authControllerProvider).valueOrNull?.uid != uid) {
+      return;
+    }
+
+    final builder = client.channel('global-server-sync')
     ..onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
@@ -93,8 +121,13 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
       callback: (_) => scheduleOwnershipRefresh(),
     );
 
-  channel = builder..subscribe();
+    channel = builder..subscribe();
+  }
+
+  unawaited(connect());
+
   ref.onDispose(() {
+    disposed = true;
     profileTimer?.cancel();
     catalogTimer?.cancel();
     ownershipTimer?.cancel();

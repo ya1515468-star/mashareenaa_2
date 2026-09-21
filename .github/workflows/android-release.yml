@@ -68,7 +68,6 @@ jobs:
           flutter build appbundle --release
           --obfuscate
           --split-debug-info=build/symbols
-          -PciDebugSigning=true
 
       - name: Upload ARMv7 APK
         uses: actions/upload-artifact@v4

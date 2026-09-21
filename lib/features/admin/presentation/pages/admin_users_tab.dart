@@ -102,14 +102,14 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        Text('عنوان المستخدم: ' + (address.isEmpty ? 'غير مسجل' : address) + '',
+                                        Text('عنوان المستخدم: ${address.isEmpty ? 'غير مسجل' : address}',
                                             style: const TextStyle(fontWeight: FontWeight.w800)),
                                         const SizedBox(height: 4),
-                                        Text('الموقع: ' + (country.isEmpty ? '—' : country) + ' / ' + (city.isEmpty ? '—' : city) + ''),
+                                        Text('الموقع: ${country.isEmpty ? '—' : country} / ${city.isEmpty ? '—' : city}'),
                                         const SizedBox(height: 4),
-                                        Text('IP: ' + (ip.isEmpty ? 'غير متاح' : ip) + ''),
+                                        Text('IP: ${ip.isEmpty ? 'غير متاح' : ip}'),
                                         if (lat.isNotEmpty || lon.isNotEmpty)
-                                          Text('الإحداثيات: ' + (lat.isEmpty ? '—' : lat) + ' , ' + (lon.isEmpty ? '—' : lon) + ''),
+                                          Text('الإحداثيات: ${lat.isEmpty ? '—' : lat} , ${lon.isEmpty ? '—' : lon}'),
                                       ],
                                     ),
                                   ),

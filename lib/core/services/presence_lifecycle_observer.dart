@@ -197,6 +197,8 @@ class _PresenceLifecycleObserverState
       unawaited(_chatSound.play(ChatSoundEvent.gift));
       // الرسالة/واجهة الشات هي المصدر المرئي الوحيد للهدية؛
       // لا نعرض Overlay عالميًا هنا حتى لا تظهر الهدية مرتين داخل الخاص.
+    }, onError: (Object error, StackTrace stack) {
+      unawaited(_reportRealtimeFailure('gift_transactions', error, stack, uid));
     });
   }
 

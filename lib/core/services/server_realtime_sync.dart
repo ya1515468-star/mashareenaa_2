@@ -1,10 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../monitoring/error_monitor.dart';
-import 'supabase_service.dart';
-import '../../features/auth/presentation/providers/auth_provider.dart';
 
 import '../monitoring/error_monitor.dart';
 import 'supabase_service.dart';
@@ -28,12 +25,12 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
   Timer? ownershipTimer;
   Timer? premiumTimer;
 
-  void scheduleProfileRefresh([String? uid]) {
+  void scheduleProfileRefresh([String? changedUid]) {
     profileTimer?.cancel();
     profileTimer = Timer(const Duration(milliseconds: 150), () {
       ref.invalidate(currentProfileProvider);
-      if (uid != null && uid.isNotEmpty) {
-        ref.invalidate(profileByIdProvider(uid));
+      if (changedUid != null && changedUid.isNotEmpty) {
+        ref.invalidate(profileByIdProvider(changedUid));
         ref.invalidate(serverUserIdentityProvider);
         ref.invalidate(serverUserIdentityInRoomProvider);
       } else {
@@ -80,69 +77,54 @@ final globalServerRealtimeSyncProvider = Provider<void>((ref) {
       }
       return;
     }
-    if (disposed || ref.read(authControllerProvider).valueOrNull?.uid != uid) {
-      return;
-    }
 
-    Future<void> connect() async {
-    try {
-      await SupabaseService.ensureValidSession();
-    } catch (e, stack) {
-      if (!disposed) {
-        unawaited(ErrorMonitor.report(
-          e,
-          stack: stack,
-          source: 'realtime.global_session_refresh',
-          screen: 'realtime.global',
-          severity: 'warning',
-        ));
-      }
-      return;
-    }
-    if (disposed || ref.read(authControllerProvider).valueOrNull?.uid != uid) {
+    if (disposed ||
+        ref.read(authControllerProvider).valueOrNull?.uid != uid) {
       return;
     }
 
     final builder = client.channel('global-server-sync')
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'profiles',
-      callback: (change) {
-        final uid = change.newRecord['id']?.toString() ?? change.oldRecord['id']?.toString();
-        scheduleProfileRefresh(uid);
-      },
-    )
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'avatar_frame_catalog',
-      callback: (_) => scheduleStoreCatalogRefresh(),
-    )
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'profile_cosmetic_catalog',
-      callback: (_) => scheduleStoreCatalogRefresh(),
-    )
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'profile_cosmetic_purchases',
-      callback: (_) => scheduleOwnershipRefresh(),
-    )
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'user_profile_services',
-      callback: (_) => schedulePremiumRefresh(),
-    )
-    ..onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: 'user_inventory',
-      callback: (_) => scheduleOwnershipRefresh(),
-    );
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'profiles',
+        callback: (change) {
+          final changedUid =
+              change.newRecord['id']?.toString() ??
+              change.oldRecord['id']?.toString();
+          scheduleProfileRefresh(changedUid);
+        },
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'avatar_frame_catalog',
+        callback: (_) => scheduleStoreCatalogRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'profile_cosmetic_catalog',
+        callback: (_) => scheduleStoreCatalogRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'profile_cosmetic_purchases',
+        callback: (_) => scheduleOwnershipRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'user_profile_services',
+        callback: (_) => schedulePremiumRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'user_inventory',
+        callback: (_) => scheduleOwnershipRefresh(),
+      );
 
     channel = builder..subscribe();
   }

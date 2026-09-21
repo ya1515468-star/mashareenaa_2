@@ -10,6 +10,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/config/supabase_config.dart';
 import 'core/monitoring/error_monitor.dart';
+import 'core/ui/adaptive_layout.dart';
 import 'core/widgets/upload_progress_overlay.dart';
 import 'core/services/server_realtime_sync.dart';
 
@@ -58,9 +59,13 @@ class MashareenaApp extends ConsumerWidget {
         context,
         child,
       ) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: UploadProgressOverlay(child: child ?? const SizedBox.shrink()),
+        return MashareenaAdaptiveShell(
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: UploadProgressOverlay(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         );
       },
       home: const PresenceLifecycleObserver(child: AppRouter()),

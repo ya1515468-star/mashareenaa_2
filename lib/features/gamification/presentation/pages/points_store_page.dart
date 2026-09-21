@@ -72,7 +72,7 @@ class _PointsStorePageState extends State<PointsStorePage>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر إتمام العملية: ' + e.toString())),
+        SnackBar(content: Text('تعذر إتمام العملية: $e')),
       );
     }
   }
@@ -99,7 +99,7 @@ class _PointsStorePageState extends State<PointsStorePage>
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'تعذر تحميل الباقات: ' + snapshot.error.toString(),
+                'تعذر تحميل الباقات: ${snapshot.error},
               ),
             );
           }
@@ -212,10 +212,7 @@ class _PackageGrid extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                '+' +
-                    (amount + bonus).toString() +
-                    ' ' +
-                    (kind == _PackageKind.points ? 'نقطة' : 'جوهرة'),
+                '+${amount + bonus} ${kind == _PackageKind.points ? 'نقطة' : 'جوهرة'}',
                 style: TextStyle(
                   color: kind == _PackageKind.points
                       ? Colors.amber

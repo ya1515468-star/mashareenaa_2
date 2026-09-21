@@ -1,221 +1,530 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../store/domain/entities/store_item_entity.dart';
-import '../../../store/domain/usecases/store_usecases.dart';
-import '../../../store/presentation/store_features_tab.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// إدارة كتالوج المتجر (300 عنصر) — DRAGON يعدّل سعر أو يعطّل أي
-/// عنصر مباشرة. فلترة حسب الفئة + بحث بالاسم لتسهيل التنقّل بين
-/// هذا العدد الكبير من العناصر.
-class AdminStoreTab extends ConsumerStatefulWidget {
+import '../../../../core/services/media_upload_service.dart';
+
+final ownerPointGemPackagesProvider =
+    FutureProvider.autoDispose<_AdminPackages>((ref) async {
+  final client = Supabase.instance.client;
+  final owner = await client.rpc('is_my_platform_owner') == true;
+  if (!owner) throw Exception('FORBIDDEN');
+  final results = await Future.wait([
+    client
+        .from('points_packages')
+        .select('*')
+        .order('sort_order')
+        .order('price_minor_units'),
+    client
+        .from('currency_packages')
+        .select('*')
+        .eq('package_type', 'gems')
+        .order('sort_order')
+        .order('price_minor_units'),
+  ]);
+  return _AdminPackages(
+    points: List<Map<String, dynamic>>.from(results[0] as List),
+    gems: List<Map<String, dynamic>>.from(results[1] as List),
+  );
+});
+
+class AdminStoreTab extends ConsumerWidget {
   const AdminStoreTab({super.key});
 
   @override
-  ConsumerState<AdminStoreTab> createState() => _AdminStoreTabState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(ownerPointGemPackagesProvider);
+    return state.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('تعذر تحميل الباقات: ' + e.toString())),
+      data: (data) => ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: () => _openEditor(
+                context,
+                ref,
+                kind: _AdminPackageKind.points,
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('باقة نقاط'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'باقات النقاط',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          ...data.points.map(
+            (row) => _AdminPackageTile(
+              row: row,
+              kind: _AdminPackageKind.points,
+              onEdit: () => _openEditor(
+                context,
+                ref,
+                kind: _AdminPackageKind.points,
+                row: row,
+              ),
+            ),
+          ),
+          const Divider(height: 28),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: () => _openEditor(
+                context,
+                ref,
+                kind: _AdminPackageKind.gems,
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('باقة جواهر'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'باقات الجواهر',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          ...data.gems.map(
+            (row) => _AdminPackageTile(
+              row: row,
+              kind: _AdminPackageKind.gems,
+              onEdit: () => _openEditor(
+                context,
+                ref,
+                kind: _AdminPackageKind.gems,
+                row: row,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    required _AdminPackageKind kind,
+    Map<String, dynamic>? row,
+  }) async {
+    final result = await showDialog<_AdminPackageFormResult>(
+      context: context,
+      builder: (_) => _AdminPackageDialog(kind: kind, row: row),
+    );
+    if (result == null) return;
+
+    String? uploadedUrl = result.existingImageUrl;
+    try {
+      if (result.file != null) {
+        final uid = Supabase.instance.client.auth.currentUser?.id;
+        if (uid == null) throw Exception('AUTH_REQUIRED');
+        final bytes =
+            result.file!.bytes ?? await result.file!.xFile.readAsBytes();
+        final ext = (result.file!.extension ?? 'png').toLowerCase();
+        uploadedUrl =
+            await MediaUploadService(bucket: 'currency-package-media')
+                .uploadBytesAtPath(
+          bytes: bytes,
+          fileName: result.file!.name,
+          path: 'packages/$uid/' + Uuid().v4() + '.' + ext,
+        );
+      }
+
+      if (kind == _AdminPackageKind.points) {
+        await Supabase.instance.client.rpc(
+          'admin_upsert_points_package',
+          params: {
+            'p_package_id': result.id,
+            'p_title': result.title,
+            'p_description': result.description,
+            'p_points_granted': result.amount,
+            'p_bonus_points': result.bonus,
+            'p_price_minor_units': result.price,
+            'p_currency': 'shamCash',
+            'p_category': 'points',
+            'p_rarity': 'common',
+            'p_icon': result.icon.isEmpty ? '⭐' : result.icon,
+            'p_image_url': uploadedUrl,
+            'p_background_image_url': null,
+            'p_display_mode': 'card',
+            'p_primary_color': null,
+            'p_secondary_color': null,
+            'p_text_color': null,
+            'p_border_color': null,
+            'p_badge_text': null,
+            'p_sort_order': result.sortOrder,
+            'p_is_featured': result.featured,
+            'p_enabled': result.enabled,
+            'p_request_id': Uuid().v4(),
+          },
+        );
+      } else {
+        await Supabase.instance.client.rpc(
+          'admin_upsert_currency_package',
+          params: {
+            'p_id': result.id,
+            'p_package_type': 'gems',
+            'p_title': result.title,
+            'p_description': result.description,
+            'p_amount': result.amount,
+            'p_bonus_amount': result.bonus,
+            'p_price_minor_units': result.price,
+            'p_price_currency': 'sham_cash',
+            'p_image_url': uploadedUrl,
+            'p_icon_key': result.icon.isEmpty ? '💎' : result.icon,
+            'p_enabled': result.enabled,
+            'p_featured': result.featured,
+            'p_sort_order': result.sortOrder,
+          },
+        );
+      }
+
+      ref.invalidate(ownerPointGemPackagesProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم حفظ الباقة على الخادم')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل حفظ الباقة: ' + e.toString())),
+        );
+      }
+    }
+  }
 }
 
-class _AdminStoreTabState extends ConsumerState<AdminStoreTab> {
-  StoreItemCategory? _filterCategory;
-  String _search = '';
+class _AdminPackages {
+  final List<Map<String, dynamic>> points;
+  final List<Map<String, dynamic>> gems;
+  const _AdminPackages({required this.points, required this.gems});
+}
+
+enum _AdminPackageKind { points, gems }
+
+class _AdminPackageTile extends StatelessWidget {
+  final Map<String, dynamic> row;
+  final _AdminPackageKind kind;
+  final VoidCallback onEdit;
+
+  const _AdminPackageTile({
+    required this.row,
+    required this.kind,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final catalogAsync = ref.watch(storeCatalogProvider);
-    final myUid = ref.watch(authControllerProvider).valueOrNull?.uid;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                    hintText: 'ابحث بالاسم...', prefixIcon: Icon(Icons.search)),
-                onChanged: (v) => setState(() => _search = v.trim()),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: ChoiceChip(
-                        label:
-                            const Text('الكل', style: TextStyle(fontSize: 11)),
-                        selected: _filterCategory == null,
-                        onSelected: (_) =>
-                            setState(() => _filterCategory = null),
-                      ),
-                    ),
-                    for (final cat in StoreItemCategory.values)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: ChoiceChip(
-                          label: Text(cat.labelAr,
-                              style: const TextStyle(fontSize: 11)),
-                          selected: _filterCategory == cat,
-                          onSelected: (_) =>
-                              setState(() => _filterCategory = cat),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    final amount = ((row[
+                kind == _AdminPackageKind.points
+                    ? 'points_granted'
+                    : 'amount'] as num?)
+            ?.toInt() ??
+        0);
+    final bonus = ((row[
+                kind == _AdminPackageKind.points
+                    ? 'bonus_points'
+                    : 'bonus_amount'] as num?)
+            ?.toInt() ??
+        0);
+    return Card(
+      child: ListTile(
+        leading: _PackageImage(
+          url: row['image_url']?.toString(),
+          fallback: row[
+                  kind == _AdminPackageKind.points ? 'icon' : 'icon_key']
+              ?.toString(),
+          kind: kind,
         ),
-        Expanded(
-          child: catalogAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('$e')),
-            data: (catalog) {
-              final filtered = catalog.where((i) {
-                if (_filterCategory != null && i.category != _filterCategory) {
-                  return false;
-                }
-                if (_search.isNotEmpty && !i.nameAr.contains(_search)) {
-                  return false;
-                }
-                return true;
-              }).toList();
-
-              return ListView.separated(
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) => _EditableItemRow(
-                  item: filtered[index],
-                  myUid: myUid,
-                ),
-              );
-            },
-          ),
+        title: Text(row['title']?.toString() ?? row['id'].toString()),
+        subtitle: Text(
+          amount.toString() +
+              ' + ' +
+              bonus.toString() +
+              ' • ' +
+              (((row['price_minor_units'] as num?)?.toInt() ?? 0)
+                  .toString()) +
+              ' شام كاش • ' +
+              (row['enabled'] == true ? 'مفعلة' : 'موقوفة'),
         ),
-      ],
+        trailing: IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: onEdit,
+        ),
+      ),
     );
   }
 }
 
-class _EditableItemRow extends ConsumerStatefulWidget {
-  final StoreItemEntity item;
-  final String? myUid;
-  const _EditableItemRow({required this.item, required this.myUid});
+class _PackageImage extends StatelessWidget {
+  final String? url;
+  final String? fallback;
+  final _AdminPackageKind kind;
+
+  const _PackageImage({
+    required this.url,
+    required this.fallback,
+    required this.kind,
+  });
 
   @override
-  ConsumerState<_EditableItemRow> createState() => _EditableItemRowState();
+  Widget build(BuildContext context) {
+    if (url != null && url!.trim().isNotEmpty) {
+      return CircleAvatar(backgroundImage: NetworkImage(url!));
+    }
+    return CircleAvatar(
+      child: Text(
+        (fallback == null || fallback!.isEmpty)
+            ? (kind == _AdminPackageKind.points ? '⭐' : '💎')
+            : fallback!,
+        style: const TextStyle(fontSize: 22),
+      ),
+    );
+  }
 }
 
-class _EditableItemRowState extends ConsumerState<_EditableItemRow> {
-  late final TextEditingController _priceController = TextEditingController(
-    text: widget.item.pricePoints.toString(),
-  );
+class _AdminPackageFormResult {
+  final String id;
+  final String title;
+  final String description;
+  final String icon;
+  final int amount;
+  final int bonus;
+  final int price;
+  final int sortOrder;
+  final bool enabled;
+  final bool featured;
+  final String? existingImageUrl;
+  final PlatformFile? file;
 
-  late final TextEditingController _gemsPriceController = TextEditingController(
-    text: widget.item.priceGems?.toString() ?? '',
-  );
+  const _AdminPackageFormResult({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.amount,
+    required this.bonus,
+    required this.price,
+    required this.sortOrder,
+    required this.enabled,
+    required this.featured,
+    required this.existingImageUrl,
+    required this.file,
+  });
+}
 
-  late bool _enabled = widget.item.enabled;
+class _AdminPackageDialog extends StatefulWidget {
+  final _AdminPackageKind kind;
+  final Map<String, dynamic>? row;
 
-  bool _saving = false;
+  const _AdminPackageDialog({required this.kind, this.row});
+
+  @override
+  State<_AdminPackageDialog> createState() => _AdminPackageDialogState();
+}
+
+class _AdminPackageDialogState extends State<_AdminPackageDialog> {
+  late final _id = TextEditingController(
+      text: widget.row?['id']?.toString() ?? '');
+  late final _title = TextEditingController(
+      text: widget.row?['title']?.toString() ?? '');
+  late final _description = TextEditingController(
+      text: widget.row?['description']?.toString() ?? '');
+  late final _amount = TextEditingController(
+      text: (((widget.row?[widget.kind == _AdminPackageKind.points
+                      ? 'points_granted'
+                      : 'amount'] as num?)
+                  ?.toInt() ??
+              0))
+          .toString());
+  late final _bonus = TextEditingController(
+      text: (((widget.row?[widget.kind == _AdminPackageKind.points
+                      ? 'bonus_points'
+                      : 'bonus_amount'] as num?)
+                  ?.toInt() ??
+              0))
+          .toString());
+  late final _price = TextEditingController(
+      text: (((widget.row?['price_minor_units'] as num?)?.toInt() ?? 0))
+          .toString());
+  late final _sort = TextEditingController(
+      text: (((widget.row?['sort_order'] as num?)?.toInt() ?? 0)).toString());
+  late final _icon = TextEditingController(
+      text: widget.row?['icon']?.toString() ??
+          widget.row?['icon_key']?.toString() ??
+          '');
+  bool enabled = widget.row?['enabled'] != false;
+  bool featured = widget.row?[
+          widget.kind == _AdminPackageKind.points ? 'is_featured' : 'featured'] ==
+      true;
+  PlatformFile? file;
 
   @override
   void dispose() {
-    _priceController.dispose();
-    _gemsPriceController.dispose();
+    for (final c in [
+      _id,
+      _title,
+      _description,
+      _amount,
+      _bonus,
+      _price,
+      _sort,
+      _icon
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (widget.myUid == null) return;
+  Future<void> _pick() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+      withData: true,
+    );
+    final picked =
+        result != null && result.files.isNotEmpty ? result.files.first : null;
+    if (picked != null && mounted) {
+      setState(() => file = picked);
+    }
+  }
 
-    final pricePoints = int.tryParse(_priceController.text.trim());
-
-    final priceGems = int.tryParse(_gemsPriceController.text.trim());
-
-    if (pricePoints == null ||
-        priceGems == null ||
-        pricePoints < 0 ||
-        priceGems < 0) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'يجب إدخال سعر صالح بالنقاط وسعر صالح بالجواهر.',
-          ),
-        ),
-      );
-
+  void _save() {
+    final id = _id.text.trim();
+    final title = _title.text.trim();
+    final amount = int.tryParse(_amount.text.trim());
+    final bonus = int.tryParse(_bonus.text.trim());
+    final price = int.tryParse(_price.text.trim());
+    final sortOrder = int.tryParse(_sort.text.trim());
+    if (id.isEmpty ||
+        title.isEmpty ||
+        amount == null ||
+        amount < 0 ||
+        bonus == null ||
+        bonus < 0 ||
+        price == null ||
+        price < 0 ||
+        sortOrder == null ||
+        sortOrder < 0) {
       return;
     }
-
-    setState(() => _saving = true);
-
-    final result = await sl<UpdateStoreItemUseCase>().call(
-      itemId: widget.item.id,
-      pricePoints: pricePoints,
-      priceGems: priceGems,
-      enabled: _enabled,
-      requestedByUid: widget.myUid!,
-    );
-
-    if (!mounted) return;
-
-    setState(() => _saving = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result.isRight() ? 'تم الحفظ ✓' : 'فشل: صلاحية غير كافية',
-        ),
+    Navigator.pop(
+      context,
+      _AdminPackageFormResult(
+        id: id,
+        title: title,
+        description: _description.text.trim(),
+        icon: _icon.text.trim(),
+        amount: amount,
+        bonus: bonus,
+        price: price,
+        sortOrder: sortOrder,
+        enabled: enabled,
+        featured: featured,
+        existingImageUrl: widget.row?['image_url']?.toString(),
+        file: file,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        children: [
-          CircleAvatar(radius: 14, backgroundColor: widget.item.colors.first),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(widget.item.nameAr,
-                style: TextStyle(fontSize: 12.5, color: p.textPrimary)),
-          ),
-          SizedBox(
-            width: 70,
-            child: TextField(
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
-              decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8)),
-            ),
-          ),
-          Switch(
-            value: _enabled,
-            onChanged: (v) => setState(() => _enabled = v),
-          ),
-          _saving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : IconButton(
-                  icon: const Icon(Icons.save_outlined, size: 18),
-                  onPressed: _save),
-        ],
+    return AlertDialog(
+      title: Text(
+        widget.row == null
+            ? (widget.kind == _AdminPackageKind.points
+                ? 'إضافة باقة نقاط'
+                : 'إضافة باقة جواهر')
+            : 'تعديل الباقة',
       ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _id,
+              enabled: widget.row == null,
+              decoration: const InputDecoration(labelText: 'المعرف'),
+            ),
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(labelText: 'العنوان'),
+            ),
+            TextField(
+              controller: _description,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'الوصف'),
+            ),
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: widget.kind == _AdminPackageKind.points
+                    ? 'عدد النقاط'
+                    : 'عدد الجواهر',
+              ),
+            ),
+            TextField(
+              controller: _bonus,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'المكافأة'),
+            ),
+            TextField(
+              controller: _price,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'السعر شام كاش'),
+            ),
+            TextField(
+              controller: _sort,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'ترتيب العرض'),
+            ),
+            TextField(
+              controller: _icon,
+              decoration: InputDecoration(
+                labelText: widget.kind == _AdminPackageKind.points
+                    ? 'رمز النقاط'
+                    : 'رمز الجواهر',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _pick,
+                icon: const Icon(Icons.upload_file),
+                label: Text(
+                    file == null ? 'رفع صورة من الهاتف' : file!.name),
+              ),
+            ),
+            SwitchListTile(
+              value: enabled,
+              onChanged: (v) => setState(() => enabled = v),
+              title: const Text('مفعلة'),
+            ),
+            SwitchListTile(
+              value: featured,
+              onChanged: (v) => setState(() => featured = v),
+              title: const Text('مميزة'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('حفظ'),
+        ),
+      ],
     );
   }
 }

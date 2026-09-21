@@ -1,717 +1,273 @@
-import '../../../../core/data/supabase_document_compat.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 
-import '../../../store/domain/big_store_catalog.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../store/domain/entities/store_item_entity.dart';
-import '../../../store/domain/usecases/store_usecases.dart';
-import '../../../store/presentation/widgets/store_preview.dart';
-
-/// Compatibility enum retained because StoreFeaturesTab imports it.
-enum StoreFeatureType { glow, frame, background }
+import '../../../../core/services/media_upload_service.dart';
 
 class PointsStorePage extends StatefulWidget {
   const PointsStorePage({super.key});
-
-  @override
-  State<PointsStorePage> createState() => _PointsStorePageState();
+  @override State<PointsStorePage> createState() => _PointsStorePageState();
 }
 
-class _PointsStorePageState extends State<PointsStorePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-  late final Future<Map<String, BigStoreProduct>> _catalogFuture;
-  bool _isPlatformOwner = false;
+class _PointsStorePageState extends State<PointsStorePage> {
+  final _db = Supabase.instance.client;
+  final _media = MediaUploadService(bucket: 'currency-package-media');
+  bool _loading = true;
+  bool _owner = false;
+  String _filter = 'all';
+  String? _error;
+  List<Map<String, dynamic>> _packages = const [];
 
   @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 5, vsync: this);
-    _catalogFuture = _loadCatalog();
-    _loadOwnerState();
-  }
+  void initState() { super.initState(); _load(); }
 
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-
-  Future<void> _loadOwnerState() async {
+  Future<void> _load() async {
     try {
-      final owner = await Supabase.instance.client.rpc('is_my_platform_owner');
-      if (mounted) setState(() => _isPlatformOwner = owner == true);
-    } catch (_) {
-      if (mounted) setState(() => _isPlatformOwner = false);
-    }
-  }
-
-  Future<Map<String, BigStoreProduct>> _loadCatalog() async {
-    final catalogResult = await sl<ListStoreCatalogUseCase>().call();
-
-    return catalogResult.fold(
-      (failure) => throw Exception(
-        'تعذّر تحميل كتالوج المتجر من الخادم: ${failure.message}',
-      ),
-      (items) {
-        final result = <String, BigStoreProduct>{};
-
-        for (final item in items) {
-          final section = switch (item.category) {
-            StoreItemCategory.currency => 'currency',
-            StoreItemCategory.usernameGlow => 'glow',
-            StoreItemCategory.avatarFrame => 'frame',
-            StoreItemCategory.animatedBackground => 'background',
-            StoreItemCategory.membership => 'membership',
-            StoreItemCategory.particleEffect => 'background',
-            StoreItemCategory.usernameBackground => 'background',
-          };
-
-          final asset = item.assetUrl?.trim();
-
-          if (asset == null || asset.isEmpty) {
-            throw Exception(
-              'عنصر المتجر ${item.id} لا يملك asset_url صالحًا.',
-            );
-          }
-
-          final sku = item.sku.trim().isEmpty ? item.id : item.sku.trim();
-
-          result[item.id] = BigStoreProduct(
-            id: item.id,
-            sku: sku,
-            section: section,
-            nameAr: item.nameAr,
-            pricePoints: item.pricePoints,
-            priceGems: item.priceGems ?? 0,
-            assetUrl: asset,
-            rarity: item.rarity,
-            featured: item.isFeatured,
-          );
-        }
-
-        return result;
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('MASHAREENA DIGITAL WORLD'),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(98),
-            child: Column(
-              children: [
-                const _StoreIntroBar(),
-                TabBar(
-                  controller: _tabs,
-                  isScrollable: true,
-                  tabs: const [
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/currency/currency_01.gif'),
-                        text: 'النقاط والجواهر'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset: 'assets/store_gifs/glow/glow_01.gif'),
-                        text: 'التوهجات'),
-                    Tab(icon: Icon(Icons.crop_square_rounded), text: 'الإطارات'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/background/background_01.gif'),
-                        text: 'الخلفيات'),
-                    Tab(
-                        icon: _StoreTabIcon(
-                            asset:
-                                'assets/store_gifs/membership/membership_01.gif'),
-                        text: 'الميزات والعضويات'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: FutureBuilder<Map<String, BigStoreProduct>>(
-          future: _catalogFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final catalog = snapshot.data ?? const <String, BigStoreProduct>{};
-
-            return HeroMode(
-              enabled: false,
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  _SectionGrid(
-                    products: _products(catalog, 'currency'),
-                    title: ' النقاط والجواهر',
-                    sectionAsset: 'assets/store_gifs/currency/currency_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'glow'),
-                    title: '50 توهج ',
-                    sectionAsset: 'assets/store_gifs/glow/glow_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'frame'),
-                    title: 'إطارات GIF من الخادم',
-                    sectionAsset: 'assets/store_gifs/glow/glow_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _SectionGrid(
-                    products: _products(catalog, 'background'),
-                    title: '50 خلفية ',
-                    sectionAsset:
-                        'assets/store_gifs/background/background_01.gif',
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                  _MembershipSection(
-                    products: _products(catalog, 'membership'),
-                    isPlatformOwner: _isPlatformOwner,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  List<BigStoreProduct> _products(
-    Map<String, BigStoreProduct> catalog,
-    String section,
-  ) {
-    final items = catalog.values
-        .where((product) => product.section == section)
-        .toList(growable: false);
-
-    return items;
-  }
-}
-
-class _StoreTabIcon extends StatelessWidget {
-  final String asset;
-
-  const _StoreTabIcon({required this.asset});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: StoreGifPreview(
-        assetPath: asset,
-        alt: 'Mashareena  store section',
-        interactionPrompt: false,
-      ),
-    );
-  }
-}
-
-class _StoreIntroBar extends StatelessWidget {
-  const _StoreIntroBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF15071F), Color(0xFF651A91)],
-        ),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'كل عناصر المتجر  • 250 منتجًا • معاينة تفاعلية • شراء خادمي',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionGrid extends StatelessWidget {
-  final List<BigStoreProduct> products;
-  final String title;
-  final String sectionAsset;
-  final bool isPlatformOwner;
-
-  const _SectionGrid({
-    required this.products,
-    required this.title,
-    required this.sectionAsset,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final columns = width >= 1400
-        ? 6
-        : width >= 1000
-            ? 5
-            : width >= 720
-                ? 4
-                : 2;
-
-    if (products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.crop_square_rounded, size: 60, color: Colors.white30),
-              const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              const Text('لا توجد إطارات محلية. الإطارات الجديدة تُرفع من مالك المنصة كملفات GIF إلى الخادم.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white60)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0E0A18), Color(0xFF32124D)],
-              ),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  height: 68,
-                  width: 68,
-                  child: StoreGifPreview(
-                    assetPath: sectionAsset,
-                    alt: title,
-                    interactionPrompt: false,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 28),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ProductCard(
-                product: products[index],
-                isPlatformOwner: isPlatformOwner,
-              ),
-              childCount: products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.70,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MembershipSection extends StatelessWidget {
-  final List<BigStoreProduct> products;
-  final bool isPlatformOwner;
-
-  const _MembershipSection({
-    required this.products,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        const SliverToBoxAdapter(child: _MembershipPolicyBanner()),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 28),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ProductCard(
-                product: products[index],
-                isPlatformOwner: isPlatformOwner,
-              ),
-              childCount: products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.sizeOf(context).width >= 900 ? 4 : 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.70,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MembershipPolicyBanner extends StatelessWidget {
-  const _MembershipPolicyBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF17100A), Color(0xFF6A4312)],
-        ),
-      ),
-      child: const Text(
-        'العضويات المدفوعة متاحة لجميع المستخدمين. الأسعار يحددها الخادم. DRAGON/مالك المنصة مستثنى من الخصم عند الشراء والإهداء فقط، ولا يحصل باقي المستخدمين على استثناء مالي من العميل.',
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: Colors.white,
-          height: 1.5,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductCard extends StatefulWidget {
-  final BigStoreProduct product;
-  final bool isPlatformOwner;
-
-  const _ProductCard({
-    required this.product,
-    required this.isPlatformOwner,
-  });
-
-  @override
-  State<_ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<_ProductCard> {
-  bool _busy = false;
-
-  Future<bool> _confirmPurchase({required String title, required String detail, String action = 'شراء'}) async {
-    if (!mounted) return false;
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(detail),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(action)),
-            ],
-          ),
-        ) ?? false;
-  }
-
-  Future<void> _purchase() async {
-    if (_busy) return;
-
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user == null) {
+      final owner = await _db.rpc('is_my_platform_owner') == true;
+      final rows = await _db.from('currency_packages')
+          .select('id,package_type,title,description,amount,bonus_amount,price_minor_units,price_currency,image_url,icon_key,enabled,featured,sort_order,created_at')
+          .order('sort_order').order('created_at', ascending: false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('جلسة المستخدم غير موجودة.'),
-        ),
-      );
-      return;
-    }
-
-    if (widget.product.section == 'membership') {
-      await _purchaseMembership();
-      return;
-    }
-
-    final confirmed = await _confirmPurchase(
-      title: 'تأكيد الشراء',
-      detail: 'سيتم شراء «${widget.product.nameAr}» مقابل ${widget.product.pricePoints} نقطة وحفظ العملية على الخادم. هل تريد المتابعة؟',
-    );
-    if (!confirmed) return;
-
-    setState(() => _busy = true);
-
-    try {
-      final category = switch (widget.product.section) {
-        'frame' => StoreItemCategory.avatarFrame,
-        'glow' => StoreItemCategory.usernameGlow,
-        'background' => StoreItemCategory.animatedBackground,
-        'currency' => StoreItemCategory.currency,
-        _ => throw StateError(
-            'قسم متجر غير مدعوم: ${widget.product.section}',
-          ),
-      };
-
-      final item = StoreItemEntity(
-        id: widget.product.id,
-        category: category,
-        nameAr: widget.product.nameAr,
-        pricePoints: widget.product.pricePoints,
-        priceGems: widget.product.priceGems,
-        colors: const [],
-        enabled: true,
-        assetUrl: widget.product.assetUrl,
-        rarity: widget.product.rarity,
-        isFeatured: widget.product.featured,
-        sku: widget.product.sku,
-        assetType: 'gif',
-        previewAsset: widget.product.assetUrl,
-      );
-
-      final result = await sl<PurchaseStoreItemUseCase>().call(
-        uid: user.id,
-        item: item,
-      );
-
-      if (!mounted) return;
-
-      result.fold(
-        (failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(failure.message)),
-          );
-        },
-        (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم شراء العنصر ✓'),
-            ),
-          );
-        },
-      );
+      setState(() { _owner = owner; _packages = List<Map<String, dynamic>>.from(rows); _loading = false; _error = null; });
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('لم يكتمل الشراء: $e'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      setState(() { _loading = false; _error = _friendly(e); });
     }
   }
 
-  Future<void> _purchaseMembership() async {
-    if (_busy) return;
-    final confirmed = await _confirmPurchase(
-      title: 'تأكيد الاشتراك',
-      detail: 'سيتم شراء «${widget.product.nameAr}» وتثبيت العضوية عبر الخادم. هل تريد المتابعة؟',
-      action: 'تأكيد',
-    );
-    if (!confirmed) return;
+  List<Map<String, dynamic>> get _visible => _packages.where((p) {
+    final enabled = p['enabled'] == true;
+    return (_owner || enabled) && (_filter == 'all' || p['package_type']?.toString() == _filter);
+  }).toList();
 
-    setState(() => _busy = true);
+  Future<void> _buy(Map<String, dynamic> row) async {
+    try {
+      await _db.rpc('purchase_currency_package', params: {
+        'p_package_id': row['id'],
+        'p_request_id': 'buy_' + DateTime.now().microsecondsSinceEpoch.toString(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم شراء الباقة وإضافة الرصيد')));
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendly(e))));
+    }
+  }
+
+  Future<void> _toggle(Map<String, dynamic> row) async {
+    try {
+      await _db.rpc('admin_set_currency_package_enabled', params: {'p_id': row['id'], 'p_enabled': row['enabled'] != true});
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendly(e))));
+    }
+  }
+
+  Future<void> _edit({Map<String, dynamic>? row}) async {
+    final title = TextEditingController(text: row?['title']?.toString() ?? '');
+    final desc = TextEditingController(text: row?['description']?.toString() ?? '');
+    final amount = TextEditingController(text: row?['amount']?.toString() ?? '0');
+    final bonus = TextEditingController(text: row?['bonus_amount']?.toString() ?? '0');
+    final price = TextEditingController(text: row?['price_minor_units']?.toString() ?? '0');
+    final sort = TextEditingController(text: row?['sort_order']?.toString() ?? '0');
+    String type = row?['package_type']?.toString() ?? 'points';
+    String? imageUrl = row?['image_url']?.toString();
+    bool enabled = row?['enabled'] != false;
+    bool featured = row?['featured'] == true;
+    PlatformFile? picked;
 
     try {
-      final callable = SupabaseFunctionsCompat.instance.httpsCallable(
-        'purchaseMembership',
-      );
-
-      await callable.call({
-        'tierId': widget.product.membershipTier,
-        'requestId': const Uuid().v4(),
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تأكيد العملية من الخادم.'),
-        ),
-      );
-    } on SupabaseFunctionException catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.message ?? 'لم تكتمل عملية العضوية.',
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialog) => AlertDialog(
+            title: Text(row == null ? 'إضافة باقة' : 'تعديل باقة'),
+            content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                items: const [
+                  DropdownMenuItem(value: 'points', child: Text('نقاط ⭐')),
+                  DropdownMenuItem(value: 'gems', child: Text('جواهر 💎')),
+                ],
+                onChanged: (v) => setDialog(() => type = v ?? type),
+                decoration: const InputDecoration(labelText: 'النوع'),
+              ),
+              TextField(controller: title, decoration: const InputDecoration(labelText: 'اسم الباقة')),
+              TextField(controller: desc, maxLines: 2, decoration: const InputDecoration(labelText: 'الوصف')),
+              Row(children: [
+                Expanded(child: TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الكمية'))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: bonus, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الإضافي'))),
+              ]),
+              TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر بالشام كاش')),
+              TextField(controller: sort, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الترتيب')),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.upload_rounded),
+                label: Text(picked?.name ?? (imageUrl == null ? 'رفع صورة' : 'استبدال الصورة')),
+                onPressed: () async {
+                  final file = await _media.pickImage();
+                  if (file == null) return;
+                  try {
+                    final uid = _db.auth.currentUser?.id;
+                    if (uid == null) throw StateError('AUTH_REQUIRED');
+                    final bytes = file.bytes ?? await file.xFile.readAsBytes();
+                    final url = await _media.uploadBytes(bytes: bytes, fileName: file.name, folder: 'packages', uid: uid);
+                    setDialog(() { picked = file; imageUrl = url; });
+                  } catch (e) {
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendly(e))));
+                  }
+                },
+              ),
+              if (imageUrl != null && imageUrl!.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(top: 6), child: Image.network(imageUrl!, height: 90, width: 90, fit: BoxFit.cover)),
+              SwitchListTile(value: enabled, onChanged: (v) => setDialog(() => enabled = v), title: const Text('نشطة')),
+              SwitchListTile(value: featured, onChanged: (v) => setDialog(() => featured = v), title: const Text('مميزة')),
+            ])),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              FilledButton(
+                onPressed: () async {
+                  try {
+                    await _db.rpc('admin_upsert_currency_package', params: {
+                      'p_id': row?['id']?.toString() ?? (type + '_' + DateTime.now().millisecondsSinceEpoch.toString()),
+                      'p_package_type': type,
+                      'p_title': title.text.trim(),
+                      'p_description': desc.text.trim(),
+                      'p_amount': int.tryParse(amount.text) ?? 0,
+                      'p_bonus_amount': int.tryParse(bonus.text) ?? 0,
+                      'p_price_minor_units': int.tryParse(price.text) ?? 0,
+                      'p_price_currency': 'sham_cash',
+                      'p_image_url': imageUrl,
+                      'p_icon_key': type == 'gems' ? '💎' : '⭐',
+                      'p_enabled': enabled,
+                      'p_featured': featured,
+                      'p_sort_order': int.tryParse(sort.text) ?? 0,
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    await _load();
+                  } catch (e) {
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendly(e))));
+                  }
+                },
+                child: const Text('حفظ'),
+              ),
+            ],
           ),
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      title.dispose(); desc.dispose(); amount.dispose(); bonus.dispose(); price.dispose(); sort.dispose();
     }
   }
 
-  Future<void> _gift() async {
-    final controller = TextEditingController();
-    final target = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('إهداء العضوية من DRAGON'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'UID المستلم'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('إهداء'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (target == null || target.isEmpty || !mounted) return;
-    try {
-      final callable = SupabaseFunctionsCompat.instance
-          .httpsCallable('adminGrantMembershipTier');
-      await callable.call({
-        'targetUid': target,
-        'tierId': widget.product.membershipTier,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إهداء العضوية مجانًا من DRAGON.')),
-      );
-    } on SupabaseFunctionException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'تعذر الإهداء.')),
-      );
-    }
+  String _friendly(Object e) {
+    final raw = e.toString().replaceFirst('PostgrestException(message: ', '').replaceFirst(RegExp(r', code:.*'), '').replaceAll('Exception: ', '');
+    if (raw.contains('FORBIDDEN')) return 'لا تملك صلاحية إدارة الباقات.';
+    if (raw.contains('INSUFFICIENT')) return 'الرصيد غير كافٍ.';
+    return raw;
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.product;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF251035), Color(0xFF0F0B15)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        border: Border.all(color: const Color(0x554A2769)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(5),
-              child: ProductGifViewer(
-                assetPath: p.assetUrl,
-                productName: p.nameAr,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-            child: Text(
-              p.nameAr,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text(
-              p.section == 'membership'
-                  ? 'عضوية ${p.membershipTier ?? 'premium'} — السعر من الخادم'
-                  : '${p.pricePoints} نقطة',
-              style: const TextStyle(
-                color: Color(0xFFFFD43B),
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _busy ? null : _purchase,
-                child: _busy
-                    ? const SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('شراء'),
-              ),
-            ),
-          ),
-          if (p.section == 'membership' && widget.isPlatformOwner)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _busy || p.membershipTier == null ? null : _gift,
-                  icon: const Icon(Icons.card_giftcard, size: 16),
-                  label: const Text('إهداء مجانًا من DRAGON'),
-                ),
-              ),
-            ),
+    final rows = _visible;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('متجر النقاط والجواهر'),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+          if (_owner) IconButton(onPressed: () => _edit(), icon: const Icon(Icons.add_rounded)),
         ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!, textAlign: TextAlign.center))
+              : Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'all', label: Text('الكل')),
+                        ButtonSegment(value: 'points', label: Text('النقاط ⭐')),
+                        ButtonSegment(value: 'gems', label: Text('الجواهر 💎')),
+                      ],
+                      selected: {_filter},
+                      onSelectionChanged: (s) => setState(() => _filter = s.first),
+                    ),
+                  ),
+                  Expanded(
+                    child: rows.isEmpty
+                        ? Center(child: Text(_owner ? 'لا توجد باقات بعد.' : 'لا توجد باقات متاحة.'))
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: rows.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 10),
+                              itemBuilder: (_, i) => _PackageCard(
+                                row: rows[i], owner: _owner,
+                                buy: () => _buy(rows[i]), edit: () => _edit(row: rows[i]), toggle: () => _toggle(rows[i]),
+                              ),
+                            ),
+                          ),
+                  ),
+                ]),
+    );
+  }
+}
+
+class _PackageCard extends StatelessWidget {
+  final Map<String, dynamic> row;
+  final bool owner;
+  final VoidCallback buy;
+  final VoidCallback edit;
+  final VoidCallback toggle;
+  const _PackageCard({required this.row, required this.owner, required this.buy, required this.edit, required this.toggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final gems = row['package_type']?.toString() == 'gems';
+    final amount = (row['amount'] as num?)?.toInt() ?? 0;
+    final bonus = (row['bonus_amount'] as num?)?.toInt() ?? 0;
+    final price = (row['price_minor_units'] as num?)?.toInt() ?? 0;
+    final image = row['image_url']?.toString();
+    final icon = row['icon_key']?.toString() ?? (gems ? '💎' : '⭐');
+    final enabled = row['enabled'] == true;
+    final label = gems ? 'جوهرة' : 'نقطة';
+    final subtitle = (amount + bonus).toString() + ' ' + label + ' • السعر ' + price.toString();
+    return Card(
+      child: ListTile(
+        leading: SizedBox(
+          width: 60, height: 60,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: image != null && image.isNotEmpty
+                ? Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _icon(icon))
+                : _icon(icon),
+          ),
+        ),
+        title: Text(row['title']?.toString() ?? 'باقة'),
+        subtitle: Text(subtitle),
+        trailing: owner
+            ? Wrap(children: [
+                IconButton(onPressed: edit, icon: const Icon(Icons.edit_rounded)),
+                IconButton(onPressed: toggle, icon: Icon(enabled ? Icons.visibility_off_outlined : Icons.visibility_outlined)),
+              ])
+            : (enabled ? FilledButton(onPressed: buy, child: const Text('شراء')) : const SizedBox.shrink()),
       ),
     );
   }
+
+  Widget _icon(String value) => DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      gradient: LinearGradient(
+        colors: row['package_type']?.toString() == 'gems'
+            ? const [Color(0xFF173E68), Color(0xFF6C35A5)]
+            : const [Color(0xFF634A11), Color(0xFFD8A628)],
+      ),
+    ),
+    child: Center(child: Text(value, style: const TextStyle(fontSize: 28))),
+  );
 }

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+/// Compatibility enum retained for the existing cosmetic store tab.
+enum StoreFeatureType { glow, frame, background }
+
 class PointsStorePage extends StatefulWidget {
   const PointsStorePage({super.key});
   @override
@@ -382,7 +385,7 @@ class _PackageEditorState extends State<_PackageEditor> {
   }
 
   Future<void> _upload() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
     );

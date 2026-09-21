@@ -645,8 +645,7 @@ ${e['details'] ?? '—'}
             const SizedBox(height: 4),
             Text(
               'المستخدم: ${(e['last_user_display_name'] ?? e['last_user_username'] ?? 'غير معروف').toString()}'
-              '  •  ${e['last_user_username'] != null ? '@${e['last_user_username']}' : ''}'
-              '  •  الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
+              ' • @${e['last_user_username'] ?? ''} • الشاشة: ${e['screen'] ?? '—'}  •  المصدر: ${e['source'] ?? '—'}  •  '
               '${e['platform'] ?? '—'}  •  مستخدمون: ${e['affected_users'] ?? 1}',
               style: const TextStyle(fontSize: 10, color: Colors.white54),
             ),

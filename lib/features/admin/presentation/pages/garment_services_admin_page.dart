@@ -10,19 +10,32 @@ class _GarmentServicesAdminPageState extends State<GarmentServicesAdminPage> {
   List<Map<String,dynamic>> catalog=[], fees=[], ads=[];
   @override void initState(){super.initState();_load();}
   Future<void> _load() async {
-    try{
-      final db=Supabase.instance.client;
-      if(await db.rpc('has_platform_service_access',params:{'p_service_key':'garment_market'})!=true){
-        if(mounted)setState(()=>loading=false);return;
+    try {
+      final db = Supabase.instance.client;
+      final allowed = await db.rpc('has_platform_service_access', params: {'p_service_key': 'garment_market'});
+      if (allowed != true) {
+        if (mounted) setState(() { loading = false; access = false; });
+        return;
       }
-      final r=await Future.wait([
-        db.rpc('service_admin_get_garment_service_catalog'),
-        db.rpc('service_admin_get_garment_publication_fees'),
-        db.from('garment_service_ads').select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at').order('created_at',ascending:false).limit(250),
-      ]);
-      if(!mounted)return;
-      setState(() { access=true; catalog=List<Map<String,dynamic>>.from(r[0] as List); fees=List<Map<String,dynamic>>.from(r[1] as List); ads=List<Map<String,dynamic>>.from(r[2] as List); loading=false; });
-    }catch(e){if(mounted){setState(()=>loading=false);_snack(_friendly(e));}}
+      final c = await db.rpc('service_admin_get_garment_service_catalog');
+      final f = await db.rpc('service_admin_get_garment_publication_fees');
+      final a = await db.from('garment_service_ads')
+          .select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at')
+          .order('created_at', ascending: false)
+          .limit(250);
+      if (!mounted) return;
+      setState(() {
+        access = true;
+        catalog = List<Map<String,dynamic>>.from(c as List);
+        fees = List<Map<String,dynamic>>.from(f as List);
+        ads = List<Map<String,dynamic>>.from(a as List);
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { loading = false; access = false; });
+      _snack(_friendly(e));
+    }
   }
   Future<void> _editFee(Map<String,dynamic> row) async {
     final points=TextEditingController(text:row['points_cost']?.toString()??'0');

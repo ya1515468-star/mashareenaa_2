@@ -39,35 +39,39 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() => loading = true);
     try {
-      final result = await Future.wait([
-        repo.garmentServiceCatalog(),
-        repo.garmentPublishedServices(),
-        Supabase.instance.client
-            .from('garment_service_ads')
-            .select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at')
-            .eq('status', 'published')
-            .order('created_at', ascending: false)
-            .limit(100),
-        Supabase.instance.client.rpc('has_platform_service_access', params: {'p_service_key': 'garment_market'}),
-        Supabase.instance.client
-            .from('garment_businesses')
-            .select(
-              'id,owner_uid,business_name,sector_key,description,city,is_verified,'
-              'is_published,views_count,created_at,updated_at',
-            )
-            .eq('is_published', true)
-            .order('created_at', ascending: false)
-            .limit(100),
-      ]);
-
+      final db = Supabase.instance.client;
+      final serviceRows = await db.from('garment_service_catalog')
+          .select('service_key,sector_key,name_ar,description_ar,icon_key,is_active,sort_order')
+          .eq('is_active', true)
+          .order('sort_order');
+      final publishedRows = await db.from('garment_products')
+          .select('id,owner_uid,product_name,description,price_minor_units,city,images')
+          .eq('is_published', true)
+          .order('created_at', ascending: false)
+          .limit(100);
+      final adRows = await db.from('garment_service_ads')
+          .select('id,owner_uid,service_key,sector_key,title,description,price_minor_units,currency,unit,min_qty,city,address,phone,whatsapp,images,specs,status,created_at')
+          .eq('status', 'published')
+          .order('created_at', ascending: false)
+          .limit(100);
+      final access = await db.rpc(
+        'has_platform_service_access',
+        params: {'p_service_key': 'garment_market'},
+      );
+      final businessRows = await db.from('garment_businesses')
+          .select('id,owner_uid,business_name,sector_key,description,city,is_verified,is_published,views_count,created_at,updated_at')
+          .eq('is_published', true)
+          .order('created_at', ascending: false)
+          .limit(100);
       if (!mounted) return;
       setState(() {
-        services = List<Map<String, dynamic>>.from(result[0] as List);
-        publishedServices = List<Map<String, dynamic>>.from(result[1] as List);
-        serviceAds = List<Map<String, dynamic>>.from(result[2] as List);
-        serviceManager = result[3] == true;
-        businesses = List<Map<String, dynamic>>.from(result[4] as List);
+        services = List<Map<String, dynamic>>.from(serviceRows);
+        publishedServices = List<Map<String, dynamic>>.from(publishedRows);
+        serviceAds = List<Map<String, dynamic>>.from(adRows);
+        serviceManager = access == true;
+        businesses = List<Map<String, dynamic>>.from(businessRows);
         loading = false;
         error = null;
       });
@@ -79,7 +83,6 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       });
     }
   }
-
   IconData _iconFor(String? key) {
     switch (key) {
       case 'content_cut':
@@ -214,6 +217,10 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
                             const SizedBox(height: 4),
                             Text(ad['title']?.toString() ?? 'إعلان', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                             if ((ad['description']?.toString() ?? '').trim().isNotEmpty) Text(ad['description'].toString(), maxLines: 3, overflow: TextOverflow.ellipsis),
+                            if ((ad['address']?.toString() ?? '').trim().isNotEmpty) Text('العنوان: ${ad['address']}', style: const TextStyle(fontSize: 11)),
+                            if ((ad['phone']?.toString() ?? '').trim().isNotEmpty) Text('الهاتف: ${ad['phone']}', style: const TextStyle(fontSize: 11)),
+                            if ((ad['whatsapp']?.toString() ?? '').trim().isNotEmpty) Text('واتساب: ${ad['whatsapp']}', style: const TextStyle(fontSize: 11)),
+                            if (ad['specs'] is Map && ((ad['specs'] as Map)['details']?.toString() ?? '').trim().isNotEmpty) Text((ad['specs'] as Map)['details'].toString(), maxLines: 5, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                             if ((ad['address']?.toString() ?? '').trim().isNotEmpty) Text('العنوان: ${ad['address']}', style: const TextStyle(fontSize: 11)),
                             if ((ad['phone']?.toString() ?? '').trim().isNotEmpty) Text('الهاتف: ${ad['phone']}', style: const TextStyle(fontSize: 11)),
                             if ((ad['whatsapp']?.toString() ?? '').trim().isNotEmpty) Text('واتساب: ${ad['whatsapp']}', style: const TextStyle(fontSize: 11)),

@@ -56,7 +56,7 @@ class _GarmentServiceAdPageState extends State<GarmentServiceAdPage> {
   }
 
   Future<void> _pickImages() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
       allowMultiple: true,

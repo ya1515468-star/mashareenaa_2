@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../producer_market/data/producer_market_repository.dart';
@@ -66,7 +65,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       businesses = nextBusinesses;
       // Show a blocking error only when every canonical source failed.
       error = failures.length == 3
-          ? 'تعذر تحميل بيانات الورش من الخادم: ' + failures.first.toString()
+          ? 'تعذر تحميل بيانات سوق الألبسة من الخادم: ${failures.first}'
           : null;
       loading = false;
     });

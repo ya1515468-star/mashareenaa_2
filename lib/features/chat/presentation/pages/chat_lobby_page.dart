@@ -594,65 +594,58 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
 
   Future<void> _openBroadcastSuggestion() async {
     if (!_canManageBroadcast) return;
-    String text = '';
-    String type = 'idea';
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF171126),
-      showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+    final controller = TextEditingController();
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF171126),
+        showDragHandle: true,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('اقتراح / بث المنصة',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18)),
-              const SizedBox(height: 10),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'idea', label: Text('فكرة')),
-                  ButtonSegment(value: 'live', label: Text('بث مباشر')),
-                ],
-                selected: {type},
-                onSelectionChanged: (s) => setState(() => type = s.first),
-              ),
+              const Text('بث المنصة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
               const SizedBox(height: 10),
               TextField(
-                maxLines: 4,
+                controller: controller,
+                maxLines: 5,
+                autofocus: true,
                 style: const TextStyle(color: Colors.white),
-                onChanged: (value) => text = value,
                 decoration: const InputDecoration(
-                    hintText: 'اكتب الفكرة أو تفاصيل البث',
-                    hintStyle: TextStyle(color: Colors.white38)),
+                  hintText: 'اكتب رسالة البث التي ستظهر للمستخدمين',
+                  hintStyle: TextStyle(color: Colors.white38),
+                ),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: () async {
-                  final value = text.trim();
+                  final value = controller.text.trim();
                   if (value.isEmpty) return;
-                  await _db.rpc('submit_platform_broadcast_request', params: {
-                    'p_request_type': type,
-                    'p_body': value,
-                    'p_room_id': _roomId,
-                  });
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  try {
+                    await _db.rpc('publish_platform_broadcast', params: {
+                      'p_message': value,
+                      'p_expires_at': DateTime.now().add(const Duration(days: 7)).toUtc().toIso8601String(),
+                    });
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر بث المنصة')));
+                    }
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyChatError(e))));
+                  }
                 },
-                icon: Icon(type == 'live'
-                    ? Icons.live_tv_rounded
-                    : Icons.lightbulb_rounded),
-                label: const Text('إرسال للجهات المخولة'),
+                icon: const Icon(Icons.campaign_rounded),
+                label: const Text('نشر البث'),
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _openGamesPanel() async {
@@ -1533,6 +1526,7 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
               onSettings: _openSettings,
               onThemes: _openChatThemes,
               onBroadcastSuggestion: _openBroadcastSuggestion,
+              onRooms: _openRooms,
               canManageBroadcast: _canManageBroadcast,
               avatarUrl: _profileAvatarUrl,
             ),
@@ -1830,7 +1824,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
               ),
             _VideoStyleBottomBar(
               showOptions: true,
-              onRooms: _openRooms,
               onOnline: _openOnline,
               onFriends: _openFriends,
               onChatStore: _openChatStore,
@@ -2519,6 +2512,7 @@ class _TopBar extends ConsumerWidget {
   final VoidCallback onReport;
   final VoidCallback onSettings;
   final VoidCallback onThemes;
+  final VoidCallback onRooms;
   final VoidCallback onBroadcastSuggestion;
   final bool canManageBroadcast;
   final String? avatarUrl;
@@ -2533,6 +2527,7 @@ class _TopBar extends ConsumerWidget {
     required this.onReport,
     required this.onSettings,
     required this.onThemes,
+    required this.onRooms,
     required this.onBroadcastSuggestion,
     required this.canManageBroadcast,
     required this.avatarUrl,
@@ -2728,6 +2723,11 @@ class _TopBar extends ConsumerWidget {
       _withBadge(
         _action(icon: Icons.flag_rounded, label: 'ابلاغ', onTap: onReport),
         reportCount,
+      ),
+      _action(
+        icon: Icons.meeting_room_outlined,
+        label: 'الغرف',
+        onTap: onRooms,
       ),
       if (canManageBroadcast)
         _action(
@@ -3955,7 +3955,6 @@ class _BottomItem extends StatelessWidget {
 class _VideoStyleBottomBar extends StatelessWidget {
   final bool showOptions;
   final VoidCallback onOptions;
-  final VoidCallback onRooms;
   final VoidCallback onOnline;
   final VoidCallback onFriends;
   final VoidCallback onChatStore;
@@ -3965,7 +3964,6 @@ class _VideoStyleBottomBar extends StatelessWidget {
   const _VideoStyleBottomBar({
     required this.showOptions,
     required this.onOptions,
-    required this.onRooms,
     required this.onOnline,
     required this.onFriends,
     required this.onChatStore,
@@ -3991,7 +3989,6 @@ class _VideoStyleBottomBar extends StatelessWidget {
                   in <({IconData icon, String label, VoidCallback onTap})>[
                 if (showMediaPlay && onMedia != null)
                   (icon: Icons.play_circle_fill, label: 'تشغيل', onTap: onMedia!),
-                (icon: Icons.meeting_room_outlined, label: 'الغرف', onTap: onRooms),
                 (icon: Icons.people_outline, label: 'المتصلون', onTap: onOnline),
                 (icon: Icons.person_add, label: 'الأصدقاء', onTap: onFriends),
                 (icon: Icons.storefront_outlined, label: 'المتجر', onTap: onChatStore),

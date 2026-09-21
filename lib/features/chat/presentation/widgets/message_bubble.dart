@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../profile/presentation/widgets/arabic_font_catalog.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../rbac/presentation/widgets/server_chat_inline_message.dart';
 import '../../domain/entities/chat_message_entity.dart';
 import 'emoji_picker_sheet.dart';
 import 'chat_media_content.dart';
-import '../../../../core/widgets/embedded_media_player.dart';
 import 'reply_3d_anchor.dart';
 import '../../../../core/widgets/dynamic_avatar_frame.dart';
-import 'chat_mention_badge.dart';
-import '../../../vip/presentation/widgets/vip_link_preview.dart';
 import '../../../vip/presentation/widgets/vip_favorite_button.dart';
 
 /// فقاعة الرسالة — مُعاد تصميمها بأسلوب مضغوط (صورة مصغّرة + اسم
@@ -25,20 +21,6 @@ import '../../../vip/presentation/widgets/vip_favorite_button.dart';
 /// حيث موضع الفقاعة نفسه يكفي لتمييز رسائلك الخاصة.
 /// نفس منطق الفحص المستخدَم في server_chat_inline_message.dart للرسائل
 /// العامة، مطبَّق هنا على مسار الرسائل الخاصة الذي لم يكن محميًا إطلاقًا.
-Color _readablePrivateTextColor(Color text, Color background) {
-  double luminance(Color c) {
-    double ch(double v) => v <= 0.03928
-        ? v / 12.92
-        : ((v + 0.055) / 1.055).clamp(0.0, 1.0).toDouble();
-    return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
-  }
-  final bgLum = luminance(background);
-  final textLum = luminance(text);
-  final contrast = (textLum - bgLum).abs();
-  if (contrast > 0.35) return text;
-  return bgLum > 0.55 ? Colors.black : Colors.white;
-}
-
 class MessageBubble extends ConsumerWidget {
   final ChatMessageEntity message;
   final bool isMine;
@@ -186,12 +168,6 @@ class MessageBubble extends ConsumerWidget {
     );
   }
 
-  Widget _vipLinkPreview(String text) {
-    final match = RegExp(r'(https?://\S+|www\.\S+)', caseSensitive: false).firstMatch(text);
-    if (match == null) return const SizedBox.shrink();
-    return VipLinkPreview(url: match.group(0)!);
-  }
-
   IconData _statusIcon() {
     switch (message.status) {
       case MessageStatus.sending:
@@ -199,7 +175,6 @@ class MessageBubble extends ConsumerWidget {
       case MessageStatus.sent:
         return Icons.check;
       case MessageStatus.delivered:
-        return Icons.done_all;
       case MessageStatus.seen:
         return Icons.done_all;
       case MessageStatus.failed:
@@ -235,7 +210,6 @@ class MessageBubble extends ConsumerWidget {
     // معاينة روابط وعرض وسائط أكبر من أي مُرسِل حتى لو لم يدفع، بينما
     // مُرسِل دفع فعليًا لا يحصل على أي أثر إن كان المُشاهد بلا اشتراك.
     final vip = ref.watch(profilePublicVipEffectsProvider(senderUid ?? currentUid)).valueOrNull ?? const <String, dynamic>{};
-    final linkPreviewEnabled = (vip['chat_link_preview_plus'] as Map?)?['enabled'] == true;
     final mediaPlusEnabled = (vip['chat_media_plus'] as Map?)?['enabled'] == true;
 
     final bubble = GestureDetector(
@@ -288,7 +262,7 @@ class MessageBubble extends ConsumerWidget {
                     ServerChatInlineMessage(
                       uid: message.senderUid,
                       roomId: roomId,
-                      fallbackName: effectiveSenderName ?? 'عضو',
+                      fallbackName: effectiveSenderName,
                       text: message.text,
                       // كانت p.textPrimary دائمًا لرسائلي هنا، متجاهلة لون
                       // الرسالة المخصَّص (myMessageColor) كليًا — والويدجت
@@ -366,7 +340,7 @@ class MessageBubble extends ConsumerWidget {
                       message.text.isNotEmpty &&
                       (effectiveSenderName != null ||
                           !RegExp(
-                            r'^(https?://)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)/\S+
+                            r'^(https?://)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)/\S+',
                             caseSensitive: false,
                           ).hasMatch(message.text.trim())))
                     ServerChatInlineMessage(
@@ -388,9 +362,7 @@ class MessageBubble extends ConsumerWidget {
                               .toSet()
                           : const <String>{},
                       showSenderName: effectiveSenderName != null,
-                    );
-                  if (!deletedForEveryone && linkPreviewEnabled && !message.type.isMedia)
-                    _vipLinkPreview(message.text),
+                    ),
                   if (deletedForEveryone)
                     Text('🚫 تم حذف هذه الرسالة',
                         style: TextStyle(
@@ -531,349 +503,6 @@ class MessageBubble extends ConsumerWidget {
     final m = dt.minute.toString().padLeft(2, '0');
     final period = dt.hour >= 12 ? 'م' : 'ص';
     return '$h:$m $period';
-  }
-}
-
-class _PrivateMentionText extends StatelessWidget {
-  final String text;
-  final Color textColor;
-  final Color frameColor;
-  final String? fontFamily;
-  final Set<String> mentionNames;
-  final bool showMentionBadge;
-  const _PrivateMentionText({
-    required this.text,
-    required this.textColor,
-    required this.frameColor,
-    this.fontFamily,
-    this.mentionNames = const <String>{},
-    this.showMentionBadge = false,
-  });
-  static final RegExp _mention = RegExp(r'@[\w\u0600-\u06FF._-]+');
-
-  RegExp _mentionPattern(Set<String> mentionNames) {
-    final names = mentionNames
-        .map((name) => name.trim().replaceFirst(RegExp(r'^@'), ''))
-        .where((name) => name.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
-    if (names.isEmpty) return _mention;
-    final escaped = names.map(RegExp.escape).join('|');
-    return RegExp(r'@(?:' + escaped + r')(?![\w\u0600-\u06FF._-])', caseSensitive: false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final matches = _mentionPattern(mentionNames).allMatches(text).toList();
-    if (matches.isEmpty) return Text(text, style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15));
-    final spans = <InlineSpan>[];
-    var cursor = 0;
-    for (final match in matches) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, match.start), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15)));
-      }
-      final raw = text.substring(match.start, match.end);
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: showMentionBadge
-            ? ChatMentionBadge(name: raw, fontSize: 13)
-            : Text(
-                raw,
-                style: TextStyle(
-                  color: textColor,
-                  fontFamily: fontFamily,
-                  fontSize: 14,
-                  height: 1.15,
-                ),
-              ),
-      ));
-      cursor = match.end;
-    }
-    if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15))); 
-    return RichText(
-        textAlign: TextAlign.right,
-        textDirection: TextDirection.rtl,
-        text: TextSpan(style: TextStyle(color: textColor), children: spans));
-  }
-}
-
-/// صورة مصغّرة مضغوطة (28px) بجانب كل رسالة من الطرف الآخر — تُظهر
-/// حرف الاسم الأول إن لم توجد صورة، بنفس أسلوب صورة البروفايل
-/// المستخدَم في بقية التطبيق.
-class _SenderAvatar extends StatelessWidget {
-  final String? url;
-  final String? frameKey;
-  final int? frameId;
-  final String? userId;
-  const _SenderAvatar({required this.url, this.frameKey, this.frameId, this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final avatar = CircleAvatar(
-      radius: 26,
-      backgroundColor: p.surfaceHighlight,
-      backgroundImage:
-          (url != null && url!.isNotEmpty) ? NetworkImage(url!) : null,
-      child: (url == null || url!.isEmpty)
-          ? Icon(Icons.person, size: 24, color: p.textMuted)
-          : null,
-    );
-    return DynamicAvatarFrame(frameId: frameId, frameKey: frameKey, radius: 26, userId: userId, child: avatar);
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
-  const _ActionTile(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return ListTile(
-      leading: Icon(icon, color: color ?? p.textPrimary),
-      title: Text(label, style: TextStyle(color: color ?? p.textPrimary)),
-      onTap: onTap,
-    );
-  }
-}
-,
-                            caseSensitive: false,
-                          ).hasMatch(message.text.trim())))
-                    ServerChatInlineMessage(
-                      uid: message.senderUid,
-                      roomId: roomId,
-                      fallbackName: effectiveSenderName ?? 'عضو',
-                      text: message.text,
-                      messageColor:
-                          isMine ? (myMessageColor ?? p.textPrimary) : p.background,
-                      backgroundColor: isMine ? p.surfaceHighlight : p.accent,
-                      mentionColor: mentionFrameColor,
-                      onNameTap: onSenderTap,
-                      nameFontSize: 12,
-                      messageFontSize: 14,
-                      showMentionBadge: _currentUserIsMentioned(message),
-                      mentionNames: (message.metadata?['mention_user_names'] is List)
-                          ? (message.metadata!['mention_user_names'] as List<dynamic>)
-                              .map((e) => e.toString())
-                              .toSet()
-                          : const <String>{},
-                      showSenderName: effectiveSenderName != null,
-                    );
-                  if (!deletedForEveryone && linkPreviewEnabled && !message.type.isMedia)
-                    _vipLinkPreview(message.text),
-                  if (deletedForEveryone)
-                    Text('🚫 تم حذف هذه الرسالة',
-                        style: TextStyle(
-                            color: isMine ? p.textPrimary : p.background,
-                            fontStyle: FontStyle.italic)),
-                  if (message.type == MessageType.gift &&
-                      !deletedForEveryone &&
-                      message.metadata != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        (message.metadata!['giftEmoji'] ??
-                                message.metadata!['gift_emoji']) as String? ??
-                            '🎁',
-                        style: const TextStyle(fontSize: 34),
-                      ),
-                    ),
-                  const SizedBox(height: 3),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (message.isEdited && !deletedForEveryone)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Text(
-                            'مُعدَّلة',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              color: (isMine ? p.textMuted : p.background)
-                                  .withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ),
-                      if ((vip['chat_favorites_plus'] as Map?)?['enabled'] == true)
-                        VipFavoriteButton(
-                          messageId: message.id,
-                          enabled: ref.watch(vipFavoriteMessageProvider(message.id)).valueOrNull == true,
-                        ),
-                      Text(
-                        _formatTime(message.createdAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: (isMine ? p.textMuted : p.background)
-                              .withValues(alpha: 0.75),
-                        ),
-                      ),
-                      if (isMine) ...[
-                        const SizedBox(width: 3),
-                        Icon(
-                          _statusIcon(),
-                          size: 13,
-                          color: message.status == MessageStatus.seen
-                              ? p.accentBright
-                              : p.textMuted,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (message.reactions.isNotEmpty && !deletedForEveryone)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Wrap(
-                  spacing: 4,
-                  children: [
-                    for (final entry in message.reactions.entries)
-                      GestureDetector(
-                        onTap: () => onReact(entry.key),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: entry.value.contains(currentUid)
-                                ? p.accent.withValues(alpha: 0.25)
-                                : p.surfaceHighlight,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: entry.value.contains(currentUid)
-                                  ? p.accent
-                                  : p.divider,
-                            ),
-                          ),
-                          child: Text('${entry.key} ${entry.value.length}',
-                              style: const TextStyle(fontSize: 11)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-
-    if (isMine) return bubble;
-
-    // رسائل الطرف الآخر: صورة مصغّرة + شارة اسم ملوَّنة (بلون
-    // عضويته/رتبته إن وُجدت) قبل الفقاعة — نفس النمط البصري
-    // المرجعي (Avatar + Colored Name Badge) لكن بألوان ثيم التطبيق
-    // الحالي دون تغيير.
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Flexible(child: bubble),
-          const SizedBox(width: 6),
-          _SenderAvatar(
-            url: senderAvatarUrl,
-            frameKey: _resolveAvatarFrameKey(),
-            frameId: _resolveFrameIdFromKey(_resolveAvatarFrameKey()),
-            userId: senderUid,
-          ),
-        ],
-      ),
-    );
-  }
-
-  int? _resolveFrameIdFromKey(String? key) {
-    final value = key?.trim();
-    if (value == null || value.isEmpty) return null;
-    final match = RegExp(r'(\d{1,3})').firstMatch(value);
-    if (match == null) return null;
-    final parsed = int.tryParse(match.group(1)!);
-    return parsed != null && parsed >= 1 && parsed <= 100 ? parsed : null;
-  }
-
-  String? _resolveAvatarFrameKey() {
-    final raw = message.metadata?['avatar_frame_key'];
-    final value = raw?.toString().trim();
-    return (value != null && value.isNotEmpty) ? value : senderAvatarFrameKey;
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final m = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'م' : 'ص';
-    return '$h:$m $period';
-  }
-}
-
-class _PrivateMentionText extends StatelessWidget {
-  final String text;
-  final Color textColor;
-  final Color frameColor;
-  final String? fontFamily;
-  final Set<String> mentionNames;
-  final bool showMentionBadge;
-  const _PrivateMentionText({
-    required this.text,
-    required this.textColor,
-    required this.frameColor,
-    this.fontFamily,
-    this.mentionNames = const <String>{},
-    this.showMentionBadge = false,
-  });
-  static final RegExp _mention = RegExp(r'@[\w\u0600-\u06FF._-]+');
-
-  RegExp _mentionPattern(Set<String> mentionNames) {
-    final names = mentionNames
-        .map((name) => name.trim().replaceFirst(RegExp(r'^@'), ''))
-        .where((name) => name.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
-    if (names.isEmpty) return _mention;
-    final escaped = names.map(RegExp.escape).join('|');
-    return RegExp(r'@(?:' + escaped + r')(?![\w\u0600-\u06FF._-])', caseSensitive: false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final matches = _mentionPattern(mentionNames).allMatches(text).toList();
-    if (matches.isEmpty) return Text(text, style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15));
-    final spans = <InlineSpan>[];
-    var cursor = 0;
-    for (final match in matches) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, match.start), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15)));
-      }
-      final raw = text.substring(match.start, match.end);
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: showMentionBadge
-            ? ChatMentionBadge(name: raw, fontSize: 13)
-            : Text(
-                raw,
-                style: TextStyle(
-                  color: textColor,
-                  fontFamily: fontFamily,
-                  fontSize: 14,
-                  height: 1.15,
-                ),
-              ),
-      ));
-      cursor = match.end;
-    }
-    if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor), style: TextStyle(color: textColor, fontFamily: fontFamily, fontSize: 14, height: 1.15))); 
-    return RichText(
-        textAlign: TextAlign.right,
-        textDirection: TextDirection.rtl,
-        text: TextSpan(style: TextStyle(color: textColor), children: spans));
   }
 }
 

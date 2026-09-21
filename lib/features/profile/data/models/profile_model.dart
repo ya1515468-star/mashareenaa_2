@@ -14,6 +14,7 @@ class ProfileModel extends ProfileEntity {
     super.profileMusicSizeBytes,
     super.country,
     super.city,
+    super.address,
     super.profession,
     super.experiences,
     super.socialLinks,
@@ -57,6 +58,7 @@ class ProfileModel extends ProfileEntity {
       profileMusicSizeBytes: (map['profileMusicSizeBytes'] as num?)?.toInt(),
       country: map['country'] as String?,
       city: map['city'] as String?,
+      address: map['address'] as String?,
       profession: map['profession'] as String?,
       experiences: List<String>.from(map['experiences'] as List? ?? []),
       socialLinks: ((map['socialLinks'] as List?) ?? [])
@@ -103,6 +105,7 @@ class ProfileModel extends ProfileEntity {
       profileMusicSizeBytes: entity.profileMusicSizeBytes,
       country: entity.country,
       city: entity.city,
+      address: entity.address,
       profession: entity.profession,
       experiences: entity.experiences,
       socialLinks: entity.socialLinks,

@@ -364,38 +364,31 @@ class MessageBubble extends ConsumerWidget {
                   if (!deletedForEveryone &&
                       !message.type.isMedia &&
                       message.text.isNotEmpty &&
-                      RegExp(r'^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)\/\S+$',
-                              caseSensitive: false)
-                          .hasMatch(message.text.trim()))
-                    SizedBox(
-                        width: 240,
-                        child: EmbeddedMediaPlayer(
-                            url: message.text.trim().startsWith('http')
-                                ? message.text.trim()
-                                : 'https://${message.text.trim()}')),
-                  if (!deletedForEveryone &&
-                      !message.type.isMedia &&
-                      message.text.isNotEmpty &&
-                      (isMine || effectiveSenderName == null ||
-                       RegExp(r'^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com)\/\S+$', caseSensitive: false).hasMatch(message.text.trim())))
-                    _PrivateMentionText(
-                        text: message.text,
-                        // كان اللون هنا يُستخدم مباشرة بلا أي فحص تباين مع
-                        // خلفية الفقاعة الفعلية (bubbleBg أدناه)، بخلاف
-                        // الرسائل العامة المحمية أصلًا عبر ServerChatInline
-                        // Message. لون رسالة مخصَّص قريب من لون الفقاعة كان
-                        // يجعل النص غير مقروء تمامًا في الخاص.
-                        textColor: _readablePrivateTextColor(
-                            isMine ? (myMessageColor ?? p.textPrimary) : p.background,
-                            isMine ? p.surfaceHighlight : p.accent),
-                        frameColor: mentionFrameColor,
-                        showMentionBadge: _currentUserIsMentioned(message),
-                        fontFamily: localArabicFontFamily(isMine ? ref.watch(currentProfileProvider).valueOrNull?.messageFontFamily : 'system_default'),
-                        mentionNames: (message.metadata?['mention_user_names'] is List)
-                            ? (message.metadata!['mention_user_names'] as List<dynamic>)
-                                .map((e) => e.toString())
-                                .toSet()
-                            : const <String>{}),
+                      (effectiveSenderName != null ||
+                          !RegExp(
+                            r'^(https?:\\/\\/)?(www\\.)?(youtube\\.com|youtu\\.be|tiktok\\.com)\\/\\S+$',
+                            caseSensitive: false,
+                          ).hasMatch(message.text.trim())))
+                    ServerChatInlineMessage(
+                      uid: message.senderUid,
+                      roomId: roomId,
+                      fallbackName: effectiveSenderName ?? 'عضو',
+                      text: message.text,
+                      messageColor:
+                          isMine ? (myMessageColor ?? p.textPrimary) : p.background,
+                      backgroundColor: isMine ? p.surfaceHighlight : p.accent,
+                      mentionColor: mentionFrameColor,
+                      onNameTap: onSenderTap,
+                      nameFontSize: 12,
+                      messageFontSize: 14,
+                      showMentionBadge: _currentUserIsMentioned(message),
+                      mentionNames: (message.metadata?['mention_user_names'] is List)
+                          ? (message.metadata!['mention_user_names'] as List<dynamic>)
+                              .map((e) => e.toString())
+                              .toSet()
+                          : const <String>{},
+                      showSenderName: effectiveSenderName != null,
+                    );
                   if (!deletedForEveryone && linkPreviewEnabled && !message.type.isMedia)
                     _vipLinkPreview(message.text),
                   if (deletedForEveryone)

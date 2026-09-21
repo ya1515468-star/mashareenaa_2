@@ -99,7 +99,7 @@ class _PointsStorePageState extends State<PointsStorePage>
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'تعذر تحميل الباقات: ${snapshot.error},
+                'تعذر تحميل الباقات: ${snapshot.error}',
               ),
             );
           }

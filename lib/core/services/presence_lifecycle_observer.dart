@@ -14,6 +14,7 @@ import '../../features/gifts/domain/repositories/gift_repository.dart';
 import '../constants/app_constants.dart';
 import '../di/injection_container.dart';
 import 'dragon_bootstrap_service.dart';
+import 'supabase_service.dart';
 
 /// يضبط presence/{uid}.isOnline = true عند دخول المستخدم المصادَق
 /// للتطبيق أو عودته من الخلفية، ويضبطه false عند الانتقال للخلفية

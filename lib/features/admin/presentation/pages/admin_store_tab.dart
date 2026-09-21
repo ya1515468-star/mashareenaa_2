@@ -38,7 +38,7 @@ class AdminStoreTab extends ConsumerWidget {
     final state = ref.watch(ownerPointGemPackagesProvider);
     return state.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('تعذر تحميل الباقات: ' + e.toString())),
+      error: (e, _) => Center(child: Text('تعذر تحميل الباقات: $e')),
       data: (data) => ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -131,7 +131,7 @@ class AdminStoreTab extends ConsumerWidget {
                 .uploadBytesAtPath(
           bytes: bytes,
           fileName: result.file!.name,
-          path: 'packages/$uid/' + Uuid().v4() + '.' + ext,
+          path: 'packages/$uid/${const Uuid().v4()}.$ext',
         );
       }
 
@@ -160,7 +160,7 @@ class AdminStoreTab extends ConsumerWidget {
             'p_sort_order': result.sortOrder,
             'p_is_featured': result.featured,
             'p_enabled': result.enabled,
-            'p_request_id': Uuid().v4(),
+            'p_request_id': const Uuid().v4(),
           },
         );
       } else {
@@ -193,7 +193,7 @@ class AdminStoreTab extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل حفظ الباقة: ' + e.toString())),
+          SnackBar(content: Text('فشل حفظ الباقة: $e')),
         );
       }
     }
@@ -244,14 +244,7 @@ class _AdminPackageTile extends StatelessWidget {
         ),
         title: Text(row['title']?.toString() ?? row['id'].toString()),
         subtitle: Text(
-          amount.toString() +
-              ' + ' +
-              bonus.toString() +
-              ' • ' +
-              (((row['price_minor_units'] as num?)?.toInt() ?? 0)
-                  .toString()) +
-              ' شام كاش • ' +
-              (row['enabled'] == true ? 'مفعلة' : 'موقوفة'),
+          '$amount + $bonus • ${((row['price_minor_units'] as num?)?.toInt() ?? 0)} شام كاش • ${row['enabled'] == true ? 'مفعلة' : 'موقوفة'}',
         ),
         trailing: IconButton(
           icon: const Icon(Icons.edit_outlined),

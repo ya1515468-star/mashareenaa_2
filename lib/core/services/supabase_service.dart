@@ -68,7 +68,7 @@ class SupabaseService {
         fileOptions: FileOptions(
           cacheControl: '3600',
           contentType: contentType,
-          upsert: false,
+          upsert: upsert,
         ),
       );
 
@@ -131,20 +131,27 @@ class SupabaseService {
   }
 
   static const Set<String> _privateBuckets = {
+    'chat-media-plus',
+    'producer-market-media',
     'profile-patterns',
     'profile-products',
   };
 
   static const Set<String> _publicBuckets = {
+    'avatar-frames',
+    'avatars',
+    'chat-badges',
+    'chat-sounds',
+    'chat-wallpapers',
+    'chat-welcome-images',
+    'currency-package-media',
+    'garment-service-media',
+    'media',
+    'member-badges',
+    'name-animations',
     'profile-avatars',
     'profile-music',
-    'chat-sounds',
-    'chat-welcome-images',
-    'chat-badges',
-    'media',
     'store-media',
-    'avatar-frames',
-    'name-animations',
   };
 
   static String _storageExceptionMessage(StorageException error) {

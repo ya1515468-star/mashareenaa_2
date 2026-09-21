@@ -55,6 +55,19 @@ class _GarmentServiceAdPageState extends State<GarmentServiceAdPage> {
     }
   }
 
+  Future<void> _ensureUploadSession() async {
+    final user = db.auth.currentUser;
+    final session = db.auth.currentSession;
+    if (user == null || session == null || session.accessToken.isEmpty) {
+      throw StateError('AUTH_REQUIRED');
+    }
+    final expiresAt = session.expiresAt;
+    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (expiresAt != null && expiresAt <= nowSeconds + 60) {
+      await db.auth.refreshSession();
+    }
+  }
+
   Future<void> _pickImages() async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -62,6 +75,7 @@ class _GarmentServiceAdPageState extends State<GarmentServiceAdPage> {
       allowMultiple: true,
     );
     if (picked == null || picked.files.isEmpty || !mounted) return;
+    await _ensureUploadSession();
     final uid = db.auth.currentUser?.id;
     if (uid == null) return;
 

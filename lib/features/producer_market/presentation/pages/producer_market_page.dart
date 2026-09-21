@@ -314,7 +314,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
     final id = reels[i]['id'].toString();
     final isOn = action == 'like' ? likes.contains(id) : saves.contains(id);
     try {
-      await repo.interact(id, isOn ? 'un' + action : action);
+      await repo.interact(id, isOn ? 'un$action' : action);
       if (!mounted) return;
       setState(() {
         if (action == 'like') {

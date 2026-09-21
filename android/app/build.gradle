@@ -44,7 +44,6 @@ android {
         resourceConfigurations += ["ar", "en"]
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
-        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -75,8 +74,4 @@ android {
 
 flutter {
     source = "../.."
-}
-
-dependencies {
-    implementation "androidx.multidex:multidex:2.0.1"
 }

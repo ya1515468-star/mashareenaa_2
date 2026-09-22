@@ -663,7 +663,6 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                     onSelectionChanged: (v) => setDialog(() => publicationCurrency = v.first),
                   ),
                   const SizedBox(height: 5),
-                  const Text('', style: TextStyle(color: Colors.white60, fontSize: 11)),
                 ]),
               ),
               actions: [
@@ -724,7 +723,6 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                 selected: value == 'gems',
                 title: Text('${fee?['gems_cost'] ?? 0} جوهرة'),
               ),
-              const Text('', style: TextStyle(color: Colors.white60, fontSize: 11)),
             ]),
           ),
           actions: [
@@ -742,7 +740,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إدارة رسوم النشر'),
-        content: const Text(''),
+        content: const SizedBox.shrink(),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );

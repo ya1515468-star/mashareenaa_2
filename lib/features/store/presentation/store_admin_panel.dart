@@ -2,7 +2,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mashareena/core/services/media_upload_service.dart';
-import '../../../core/data/supabase_document_compat.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di/injection_container.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
@@ -519,34 +518,4 @@ class StoreAdminPanel extends ConsumerWidget {
         content: Text(r.fold((f) => f.message, (_) => 'تم تحديث السعر'))));
   }
 
-}'),
-                content: TextField(
-                    controller: controller,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'السعر')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text('إلغاء')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('حفظ'))
-                ]));
-    if (result != true) {
-      controller.dispose();
-      return;
-    }
-    final amount = double.tryParse(controller.text.trim());
-    controller.dispose();
-    if (amount == null || amount < 0) return;
-    final r = await sl<UpdatePointsPackagePriceUseCase>().call(
-        packageId: p.id,
-        priceMinorUnits: (amount * 100).round(),
-        enabled: true,
-        requestedByUid: uid);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(r.fold((f) => f.message, (_) => 'تم تحديث السعر'))));
-  }
 }

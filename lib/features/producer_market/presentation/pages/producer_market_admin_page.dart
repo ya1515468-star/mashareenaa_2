@@ -142,7 +142,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
           'p_is_active': active,
         });
         await _load();
-        if (mounted) _snack('تم حفظ هوية الموسم خادميًا.');
+        if (mounted) _snack('تم الحفظ.');
       } catch (e) {
         if (mounted) _snack(_friendly(e));
       }
@@ -179,7 +179,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
             Slider(value: size.clamp(16, 40), min: 16, max: 40, divisions: 24, label: size.toStringAsFixed(0), onChanged: (v) => setModal(() => size = v)),
           ]),
           _SectionCard(title: 'خلفية القسم', icon: Icons.wallpaper_rounded, children: [
-            TextField(controller: bg, maxLines: 2, decoration: const InputDecoration(labelText: 'رابط/مسار الخلفية الخادمي')),
+            TextField(controller: bg, maxLines: 2, decoration: const InputDecoration(labelText: 'رابط/مسار الخلفية')),
             const SizedBox(height: 8),
             FilledButton.tonalIcon(onPressed: () async { final file = await repo.pickImage(); if (file == null) return; try { final path = await repo.uploadSeasonAsset(file, gif: false); setModal(() => bg.text = path); } catch (e) { if (mounted) _snack(_friendly(e)); } }, icon: const Icon(Icons.upload_file_rounded), label: const Text('رفع خلفية القسم')),
           ]),
@@ -188,11 +188,11 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
             const SizedBox(height: 8),
             FilledButton.tonalIcon(onPressed: () async { final file = await repo.pickImage(); if (file == null) return; final ext = (file.extension ?? '').toLowerCase(); if (ext != 'gif') { _snack('اختر ملف GIF شفافًا للمؤثر المتحرك.'); return; } try { final path = await repo.uploadSeasonAsset(file, gif: true); setModal(() => gif.text = path); } catch (e) { if (mounted) _snack(_friendly(e)); } }, icon: const Icon(Icons.cloud_upload_rounded), label: const Text('رفع GIF ثلج / شمس / أي مؤثر')),
             const SizedBox(height: 5),
-            const Text('يمكن للمالك رفع GIF شفاف للثلوج شتاءً أو الشمس صيفًا، وتبقى جميع الروابط خادمية.', style: TextStyle(color: Colors.white60, fontSize: 12)),
+            const Text('', style: TextStyle(color: Colors.white60, fontSize: 12)),
           ]),
           SwitchListTile(value: active, onChanged: (v) => setModal(() => active = v), title: const Text('تفعيل هوية الموسم'), contentPadding: EdgeInsets.zero),
           const SizedBox(height: 8),
-          FilledButton.icon(onPressed: () => save(setModal), icon: const Icon(Icons.save_rounded), label: const Text('حفظ هوية سوق المنتجين')),
+          FilledButton.icon(onPressed: () => save(setModal), icon: const Icon(Icons.save_rounded), label: const Text('حفظ الهوية')),
         ],
       );
     });
@@ -231,7 +231,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
     var download = row['allow_download'] != false;
     var pin = row['can_pin'] == true;
     await showDialog<void>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text('تعديل ${row['tier_id']} خادميًا'),
+      title: Text('تعديل ${row['tier_id']}'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: a, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: reel ? 'حصص الريلز / شهر' : 'المناقصات المحلية / شهر')),
         TextField(controller: b, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: reel ? 'المدة القصوى بالثواني' : 'الطلبات الخارجية / شهر')),
@@ -300,7 +300,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
           TextField(controller:desc,maxLines:3,decoration:const InputDecoration(labelText:'الوصف')),
           Row(children:[Expanded(child:TextField(controller:duration,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'المدة بالثواني'))),const SizedBox(width:8),Expanded(child:TextField(controller:price,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'السعر')))]),
           TextField(controller:city,decoration:const InputDecoration(labelText:'المدينة')),
-          DropdownButtonFormField<String>(initialValue:sector,decoration:const InputDecoration(labelText:'القطاع الخادمي'),items:sectors.map((e)=>DropdownMenuItem(value:e['sector_key']?.toString(),child:Text(e['name_ar']?.toString()??''))).toList(),onChanged:(v)=>setDialog(()=>sector=v)),
+          DropdownButtonFormField<String>(initialValue:sector,decoration:const InputDecoration(labelText:'القطاع'),items:sectors.map((e)=>DropdownMenuItem(value:e['sector_key']?.toString(),child:Text(e['name_ar']?.toString()??''))).toList(),onChanged:(v)=>setDialog(()=>sector=v)),
           TextField(controller:tags,decoration:const InputDecoration(labelText:'الوسوم')),
           Slider(value:score.toDouble(),min:0,max:100,divisions:20,label:'$score/100',onChanged:(v)=>setDialog(()=>score=v.round())),
           Wrap(spacing:4,children:[
@@ -313,7 +313,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
           const SizedBox(height:8),
           Row(children:[Expanded(child:OutlinedButton.icon(onPressed:() async { video=await repo.pickVideo(); if(ctx.mounted)setDialog((){}); },icon:const Icon(Icons.video_library_outlined),label:Text(video?.name??'استبدال الفيديو'))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:() async { cover=await repo.pickImage(); if(ctx.mounted)setDialog((){}); },icon:const Icon(Icons.image_outlined),label:Text(cover?.name??'استبدال الغلاف')))]),
           const SizedBox(height:5),
-          const Text('الإبراز يرفع ظهور الريلز في الترتيب الخادمي، ولا يعدّل عداد الإعجابات ولا ينشئ إعجابات مصطنعة.',style:TextStyle(color:Colors.white60,fontSize:11)),
+          const Text('',style:TextStyle(color:Colors.white60,fontSize:11)),
         ]))),
         actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton(onPressed:() async {
           try {
@@ -323,16 +323,16 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
             await repo.updateOwnerReelControl(reelId:row['id'].toString(),title:title.text.trim(),description:desc.text.trim(),videoUrl:vp,durationSeconds:int.tryParse(duration.text)??30,thumbnailUrl:cp,sectorKey:sector,priceMinorUnits:int.tryParse(price.text),city:city.text.trim(),tags:tags.text.split(',').map((e)=>e.trim()).where((e)=>e.isNotEmpty).toList(),allowDownload:allowDownload,published:published,blocked:blocked,pinned:pinned,featured:featured,promotionScore:score);
             if(ctx.mounted)Navigator.pop(ctx); await _load();
           }catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}
-        },child:const Text('حفظ خادمي'))],
+        },child:const Text('حفظ'))],
       )));
     } finally { title.dispose(); desc.dispose(); city.dispose(); duration.dispose(); price.dispose(); tags.dispose(); }
   }
 
   Widget _wallpaperAdmin() {
     return RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.all(16),children:[
-      Row(children:[const Expanded(child:Text('خلفيات الشات — كتالوج خادمي',style:TextStyle(fontWeight:FontWeight.w900,fontSize:20))),FilledButton.icon(onPressed:()=>_editWallpaper(null),icon:const Icon(Icons.add_rounded),label:const Text('إضافة'))]),
+      Row(children:[const Expanded(child:Text('خلفيات الشات',style:TextStyle(fontWeight:FontWeight.w900,fontSize:20))),FilledButton.icon(onPressed:()=>_editWallpaper(null),icon:const Icon(Icons.add_rounded),label:const Text('إضافة'))]),
       const SizedBox(height:8),
-      const Text('يمكن للمالك إنشاء وتعديل وتعطيل الخلفيات والتحكم في المجاني/VIP والسعر والترتيب. الواجهة تقرأ الكتالوج من الخادم.',style:TextStyle(color:Colors.white60,fontSize:12)),
+      const Text('',style:TextStyle(color:Colors.white60,fontSize:12)),
       const SizedBox(height:12),
       ...wallpapers.map((w)=>Card(child:ListTile(
         leading:Container(width:52,height:52,decoration:BoxDecoration(borderRadius:BorderRadius.circular(10),gradient:LinearGradient(colors:[_color(w['color1']),_color(w['color2'])]))),
@@ -354,7 +354,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
     final price=TextEditingController(text:row?['price_points']?.toString()??'0');
     final order=TextEditingController(text:row?['sort_order']?.toString()??'250');
     var premium=row?['is_premium']==true; var active=row?['is_active']!=false; var kind=row?['kind']?.toString()??'gradient'; if(!const {'solid','gradient','image'}.contains(kind)) kind='gradient';
-    await showDialog<void>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(title:Text(row==null?'إضافة خلفية خادمية':'تعديل الخلفية الخادمية'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+    await showDialog<void>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(title:Text(row==null?'إضافة خلفية':'تعديل الخلفية'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
       TextField(controller:key,enabled:row==null,decoration:const InputDecoration(labelText:'مفتاح الخلفية')),
       TextField(controller:name,decoration:const InputDecoration(labelText:'الاسم العربي')),
       DropdownButtonFormField<String>(initialValue:kind,items:const [DropdownMenuItem(value:'solid',child:Text('لون واحد')),DropdownMenuItem(value:'gradient',child:Text('تدرج')),DropdownMenuItem(value:'image',child:Text('صورة'))],onChanged:(v)=>setDialog(()=>kind=v??kind),decoration:const InputDecoration(labelText:'النوع')),
@@ -365,14 +365,14 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
       TextField(controller:order,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'الترتيب')),
       SwitchListTile(value:premium,onChanged:(v)=>setDialog(()=>premium=v),title:const Text('VIP')),
       SwitchListTile(value:active,onChanged:(v)=>setDialog(()=>active=v),title:const Text('نشطة')),
-    ])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton(onPressed:() async { try{await repo.upsertWallpaper(key:key.text.trim(),nameAr:name.text.trim(),scope:'both',kind:kind,color1:c1.text.trim(),color2:c2.text.trim(),imageUrl:image.text.trim().isEmpty?null:image.text.trim(),premium:premium,pricePoints:int.tryParse(price.text)??0,active:active,sortOrder:int.tryParse(order.text)??250);if(ctx.mounted)Navigator.pop(ctx);await _load();}catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}},child:const Text('حفظ خادمي'))])));
+    ])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton(onPressed:() async { try{await repo.upsertWallpaper(key:key.text.trim(),nameAr:name.text.trim(),scope:'both',kind:kind,color1:c1.text.trim(),color2:c2.text.trim(),imageUrl:image.text.trim().isEmpty?null:image.text.trim(),premium:premium,pricePoints:int.tryParse(price.text)??0,active:active,sortOrder:int.tryParse(order.text)??250);if(ctx.mounted)Navigator.pop(ctx);await _load();}catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}},child:const Text('حفظ'))])));
     key.dispose();name.dispose();c1.dispose();c2.dispose();image.dispose();price.dispose();order.dispose();
   }
 
   Future<void> _createOwnerReel() async {
     final sectors=await repo.sectors();
     if (!mounted) return;
-    if (sectors.isEmpty) { _snack('لا توجد قطاعات فعالة على الخادم.'); return; }
+    if (sectors.isEmpty) { _snack('لا توجد قطاعات فعالة.'); return; }
     final title=TextEditingController(); final desc=TextEditingController(); final duration=TextEditingController(text:'30');
     final price=TextEditingController(); final city=TextEditingController(); final tags=TextEditingController();
     String? sector=sectors.first['sector_key']?.toString(); PlatformFile? video; PlatformFile? cover; var allowDownload=true;
@@ -382,14 +382,14 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
         TextField(controller:title,decoration:const InputDecoration(labelText:'عنوان المنتج')),
         TextField(controller:desc,maxLines:3,decoration:const InputDecoration(labelText:'الوصف')),
         Row(children:[Expanded(child:TextField(controller:duration,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'المدة بالثواني'))),const SizedBox(width:8),Expanded(child:TextField(controller:price,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'السعر')))]),
-        TextField(controller:city,decoration:const InputDecoration(labelText:'المدينة/الورشة')),
+        TextField(controller:city,decoration:const InputDecoration(labelText:'المدينة')),
         DropdownButtonFormField<String>(initialValue:sector,items:sectors.map((e)=>DropdownMenuItem(value:e['sector_key']?.toString(),child:Text(e['name_ar']?.toString()??''))).toList(),onChanged:(v)=>setDialog(()=>sector=v),decoration:const InputDecoration(labelText:'القطاع')),
         TextField(controller:tags,decoration:const InputDecoration(labelText:'الوسوم')),
         Row(children:[Expanded(child:OutlinedButton.icon(onPressed:() async {video=await repo.pickVideo();if(ctx.mounted)setDialog((){});},icon:const Icon(Icons.video_file_rounded),label:Text(video?.name??'اختيار الفيديو'))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:() async {cover=await repo.pickImage();if(ctx.mounted)setDialog((){});},icon:const Icon(Icons.image_outlined),label:Text(cover?.name??'الغلاف')))]),
         SwitchListTile(value:allowDownload,onChanged:(v)=>setDialog(()=>allowDownload=v),contentPadding:EdgeInsets.zero,title:const Text('السماح بالتحميل')),
-        const Text('المالك لا يخضع لحصة النشر. التحقق من الصيغة والحجم والقطاع والملف الفعلي يتم على الخادم.',style:TextStyle(color:Colors.white60,fontSize:11)),
+        const Text('',style:TextStyle(color:Colors.white60,fontSize:11)),
       ]))),
-      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton.icon(onPressed:video==null?null:() async {try{if(title.text.trim().isEmpty) { _snack('اكتب عنوان المنتج قبل رفع الفيديو.'); return; } final parsedDuration=int.tryParse(duration.text)??0; if(parsedDuration<=0){ _snack('مدة الفيديو يجب أن تكون أكبر من صفر.'); return; } final vp=await repo.uploadReelVideo(video!);String? cp;if(cover!=null)cp=await repo.uploadReelCover(cover!);await repo.publishReel(title:title.text.trim(),description:desc.text.trim(),duration:parsedDuration,videoPath:vp,coverPath:cp,allowDownload:allowDownload,sector:sector!,priceLabel:price.text.trim().isEmpty?null:price.text.trim(),city:city.text.trim(),tags:tags.text.split(',').map((e)=>e.trim()).where((e)=>e.isNotEmpty).toList());if(ctx.mounted)Navigator.pop(ctx);await _load();}catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}},icon:const Icon(Icons.cloud_upload_rounded),label:const Text('رفع ونشر خادمي'))]
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),FilledButton.icon(onPressed:video==null?null:() async {try{if(title.text.trim().isEmpty) { _snack('اكتب عنوان المنتج قبل رفع الفيديو.'); return; } final parsedDuration=int.tryParse(duration.text)??0; if(parsedDuration<=0){ _snack('مدة الفيديو يجب أن تكون أكبر من صفر.'); return; } final vp=await repo.uploadReelVideo(video!);String? cp;if(cover!=null)cp=await repo.uploadReelCover(cover!);await repo.publishReel(title:title.text.trim(),description:desc.text.trim(),duration:parsedDuration,videoPath:vp,coverPath:cp,allowDownload:allowDownload,sector:sector!,priceLabel:price.text.trim().isEmpty?null:price.text.trim(),city:city.text.trim(),tags:tags.text.split(',').map((e)=>e.trim()).where((e)=>e.isNotEmpty).toList());if(ctx.mounted)Navigator.pop(ctx);await _load();}catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}},icon:const Icon(Icons.cloud_upload_rounded),label:const Text('رفع ونشر'))]
     )));
     title.dispose();desc.dispose();duration.dispose();price.dispose();city.dispose();tags.dispose();
   }
@@ -402,7 +402,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
         children: [
           const Text('خدمات الألبسة والرسوم — تحكم المالك', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
           const SizedBox(height: 8),
-          const Text('القطاعات والخدمات ورسوم النشر خادمية. التعديل يمر عبر RPC مالك ولا يعدل الإعجابات أو الأرصدة مباشرة.'),
+          const Text(''),
           const SizedBox(height: 12),
           ...publicationFees.map((row) => Card(
                 child: ListTile(
@@ -468,7 +468,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
                     await _load();
                   } catch (e) { if (ctx.mounted) _snack(_friendly(e)); }
                 },
-                child: const Text('حفظ خادميًا'),
+                child: const Text('حفظًا'),
               ),
             ],
           ),
@@ -493,7 +493,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
             title: Text(row == null ? 'إضافة نوع خدمة' : 'تعديل خدمة الألبسة'),
             content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: key, enabled: row == null, decoration: const InputDecoration(labelText: 'مفتاح الخدمة')),
-              TextField(controller: sector, decoration: const InputDecoration(labelText: 'قطاع الخادم')),
+              TextField(controller: sector, decoration: const InputDecoration(labelText: 'القطاع')),
               TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم العربي')),
               TextField(controller: description, maxLines: 3, decoration: const InputDecoration(labelText: 'الوصف')),
               TextField(controller: icon, decoration: const InputDecoration(labelText: 'مفتاح الأيقونة')),
@@ -518,7 +518,7 @@ class _ProducerMarketAdminPageState extends State<ProducerMarketAdminPage>
                     await _load();
                   } catch (e) { if (ctx.mounted) _snack(_friendly(e)); }
                 },
-                child: const Text('حفظ خادميًا'),
+                child: const Text('حفظًا'),
               ),
             ],
           ),

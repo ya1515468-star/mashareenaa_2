@@ -62,7 +62,7 @@ class _PointsStorePageState extends State<PointsStorePage> {
           FilledButton(onPressed:() async{
             try{
               await _db.rpc('admin_upsert_currency_package',params:{
-                'p_id':r?['id']?.toString()??(type+'_'+DateTime.now().microsecondsSinceEpoch.toString()),
+                'p_id': r?['id']?.toString() ?? '${type}_${DateTime.now().microsecondsSinceEpoch}',
                 'p_package_type':type,'p_title':title.text.trim(),'p_description':desc.text.trim(),
                 'p_amount':int.tryParse(amount.text)??0,'p_bonus_amount':int.tryParse(bonus.text)??0,'p_price_minor_units':int.tryParse(price.text)??0,
                 'p_price_currency':'sham_cash','p_image_url':image,'p_icon_key':type=='gems'?'💎':'⭐','p_enabled':enabled,'p_featured':featured,'p_sort_order':int.tryParse(sort.text)??0,
@@ -90,7 +90,7 @@ class _Card extends StatelessWidget{
   @override Widget build(BuildContext context){
     final gems=row['package_type']=='gems',enabled=row['enabled']==true,amount=(row['amount'] as num?)?.toInt()??0,bonus=(row['bonus_amount'] as num?)?.toInt()??0,image=row['image_url']?.toString(),icon=row['icon_key']?.toString()??(gems?'💎':'⭐');
     return Card(child:ListTile(leading:SizedBox(width:58,height:58,child:ClipRRect(borderRadius:BorderRadius.circular(10),child:image!=null&&image.isNotEmpty?Image.network(image,fit:BoxFit.cover,errorBuilder:(_,__,___)=>_Icon(icon)):_Icon(icon))),
-      title:Text(row['title']?.toString()??'باقة'),subtitle:Text((amount+bonus).toString()+' '+(gems?'جوهرة':'نقطة')+' • '+(row['price_minor_units']??0).toString()+' شام كاش'),
+      title:Text(row['title']?.toString()??'باقة'),subtitle: Text('${amount + bonus} ${gems ? 'جوهرة' : 'نقطة'} • ${row['price_minor_units'] ?? 0} شام كاش'),
       trailing:owner?Wrap(children:[IconButton(onPressed:edit,icon:const Icon(Icons.edit)),IconButton(onPressed:toggle,icon:Icon(enabled?Icons.visibility_off_outlined:Icons.visibility_outlined))]):(enabled?FilledButton(onPressed:buy,child:const Text('شراء')):const SizedBox.shrink())));
   }
 }

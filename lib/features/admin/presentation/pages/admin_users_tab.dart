@@ -97,8 +97,10 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
-                                      Text('عنوان المستخدم: ${address.isEmpty ? 'غير مسجل' : address}',
-                                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                                      Text(
+                                        'عنوان المستخدم: ${address.isEmpty ? 'غير مسجل' : address}',
+                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                      ),
                                       const SizedBox(height: 4),
                                       Text('الموقع: ${country.isEmpty ? '—' : country} / ${city.isEmpty ? '—' : city}'),
                                       const SizedBox(height: 4),

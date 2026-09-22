@@ -55,7 +55,6 @@ import 'chat_thread_page.dart';
 import '../widgets/voice_recorder_sheet.dart';
 import '../../../store/presentation/profile_cosmetic_store_page.dart';
 import 'room_management_page.dart';
-import 'chat_rooms_page.dart';
 import 'chat_feature_settings_page.dart';
 import 'chat_notification_settings_page.dart';
 import 'directory_list_page.dart';
@@ -1821,7 +1820,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
               ),
             _VideoStyleBottomBar(
               showOptions: true,
-              onRooms: _openRooms,
               onOnline: _openOnline,
               onFriends: _openFriends,
               onChatStore: _openChatStore,
@@ -1896,30 +1894,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
         ),
       ),
     ),
-    );
-  }
-
-  Future<void> _openRooms() async {
-    final selectedRoomId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const ChatRoomsPage()),
-    );
-    if (!mounted || selectedRoomId == null || selectedRoomId.trim().isEmpty) {
-      return;
-    }
-
-    final normalizedRoomId = selectedRoomId.trim();
-    if (widget.onRoomSelected != null) {
-      // Main chat is hosted by HomeShell. Change only the room child so the
-      // global bottom navigation remains mounted and visible.
-      widget.onRoomSelected!(normalizedRoomId);
-      return;
-    }
-
-    // Backward-compatible fallback for any standalone ChatLobbyPage caller.
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ChatLobbyPage(roomId: normalizedRoomId),
-      ),
     );
   }
 
@@ -3946,7 +3920,6 @@ class _BottomItem extends StatelessWidget {
 class _VideoStyleBottomBar extends StatelessWidget {
   final bool showOptions;
   final VoidCallback onOptions;
-  final VoidCallback onRooms;
   final VoidCallback onOnline;
   final VoidCallback onFriends;
   final VoidCallback onChatStore;
@@ -3956,7 +3929,6 @@ class _VideoStyleBottomBar extends StatelessWidget {
   const _VideoStyleBottomBar({
     required this.showOptions,
     required this.onOptions,
-    required this.onRooms,
     required this.onOnline,
     required this.onFriends,
     required this.onChatStore,

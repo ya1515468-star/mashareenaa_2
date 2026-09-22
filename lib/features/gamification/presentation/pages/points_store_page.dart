@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/services/media_upload_service.dart';
+
+enum StoreFeatureType { glow, frame, background }
 
 class PointsStorePage extends StatefulWidget {
   const PointsStorePage({super.key});

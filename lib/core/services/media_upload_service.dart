@@ -104,6 +104,10 @@ class MediaUploadService {
       'garment-service-media' ||
       'profile-patterns' =>
         '$safeUid/$uniqueName',
+      'currency-package-media' =>
+        'packages/$safeUid/$uniqueName',
+      'profile-products' =>
+        'products/$uniqueName/$safeUid',
       _ => '$safeFolder/$safeUid/$uniqueName',
     };
     return uploadBytesAtPath(

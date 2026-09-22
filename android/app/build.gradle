@@ -47,6 +47,23 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    // ARM64 release APKs must not carry the extra native plugin binaries
+    // for unrelated Android ABIs. Flutter's target-platform selects the
+    // Flutter engine ABI, while prebuilt plugin JNI libraries may otherwise
+    // remain packaged.
+    packaging {
+        jniLibs {
+            excludes += [
+                "**/armeabi-v7a/**",
+                "**/x86/**",
+                "**/x86_64/**",
+                "**/armeabi/**",
+                "**/mips/**",
+                "**/mips64/**"
+            ]
+        }
+    }
 }
 
 flutter {

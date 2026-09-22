@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/services/supabase_service.dart';
 
 class ProducerMarketRepository {
   ProducerMarketRepository._();
@@ -45,7 +46,7 @@ class ProducerMarketRepository {
     );
     final result = <String, String>{};
     for (final row in List<Map<String, dynamic>>.from(rows)) {
-      final name = (row['display_name'] ?? row['username'] ?? 'منتج أزياء')
+      final name = (row['username'] ?? row['display_name'] ?? 'منتج أزياء')
           .toString()
           .trim();
       result[row['id'].toString()] =
@@ -145,8 +146,8 @@ class ProducerMarketRepository {
     }
     if (bytes.isEmpty) throw Exception('الملف فارغ');
     if (bytes.length > 100 * 1024 * 1024) throw Exception('الملف يتجاوز الحد 100MB');
-    await _supabase.storage.from('producer-market-media').uploadBinary(path, bytes, fileOptions: FileOptions(upsert: false, contentType: _mimeFor(extension)));
-    return 'storage://producer-market-media/$path';
+    final stored = await SupabaseService.uploadBytesToBucket(bucket: 'producer-market-media', path: path, bytes: bytes, contentType: _mimeFor(extension), upsert: false, fileName: file.name);
+    return 'storage://producer-market-media/$stored';
   }
 
   String _mimeFor(String ext) => switch (ext.toLowerCase()) {
@@ -411,7 +412,7 @@ class ProducerMarketRepository {
     if (bytes.isEmpty) throw Exception('INVALID_IMAGE');
     if (bytes.length > 6 * 1024 * 1024) throw Exception('IMAGE_TOO_LARGE');
     final path = 'catalog/$uid/${_uuid.v4()}.$ext';
-    await _supabase.storage.from('chat-wallpapers').uploadBinary(path, bytes, fileOptions: FileOptions(upsert: false, contentType: _mimeFor(ext)));
+    await SupabaseService.uploadBytesToBucket(bucket: 'chat-wallpapers', path: path, bytes: bytes, contentType: _mimeFor(ext), upsert: false, fileName: file.name);
     return _supabase.storage.from('chat-wallpapers').getPublicUrl(path);
   }
 

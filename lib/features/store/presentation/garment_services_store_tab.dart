@@ -169,7 +169,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                     children: [
                       const Icon(Icons.storefront_rounded, size: 44, color: AppColors.gold),
                       const SizedBox(height: 8),
-                      const Text('لا يوجد نشاط لك على الخادم. أنشئ مسودة أولًا ثم انشرها برسوم الخدمة المناسبة.'),
+                      const Text('لا يوجد نشاط لك. أنشئ مسودة أولًا ثم انشرها برسوم الخدمة المناسبة.'),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
                         onPressed: _createBusiness,
@@ -208,13 +208,13 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
             const SizedBox(height: 18),
             if (businesses.isNotEmpty) ...[
               const SizedBox(height: 18),
-              const Text('أنشطتك على الخادم', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+              const Text('أنشطتك', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
               const SizedBox(height: 8),
               ...businesses.map(_businessCard),
             ],
             const SizedBox(height: 16),
             Text(
-              'رسم النشر للخدمة الحالية: $selectedCost ${publicationCurrency == 'points' ? 'نقطة' : 'جوهرة'} — السعر لا يُخصم إلا عبر العملية الخادمية ذات مفتاح طلب idempotent.',
+              'رسم النشر: $selectedCost ${publicationCurrency == 'points' ? 'نقطة' : 'جوهرة'}',
               style: const TextStyle(color: Colors.white60, fontSize: 11),
             ),
           ],
@@ -241,7 +241,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                 ],
               ),
               const SizedBox(height: 8),
-              const Text('خياطة وتفصيل، قص، كحت وقص ليزر، غسيل ومعالجة، تطريز، طباعة، صباغة، كوي وتشطيب، تغليف، ليبل، باترون، تصميم، جلود، مكائن، شحن وأكثر — جميعها من كتالوج خادمي.'),
+              const Text('خياطة وتفصيل، قص، كحت وقص ليزر، غسيل ومعالجة، تطريز، طباعة، صباغة، كوي وتشطيب، تغليف، ليبل، باترون، تصميم، جلود، مكائن، شحن وأكثر — جميعها من الكتالوج.'),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -249,7 +249,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                 children: [
                   _pill(Icons.stars_rounded, '${fee?['points_cost'] ?? 0} نقطة'),
                   _pill(Icons.diamond_rounded, '${fee?['gems_cost'] ?? 0} جوهرة'),
-                  _pill(Icons.security_rounded, 'التحصيل خادمي'),
+                  _pill(Icons.security_rounded, 'الدفع'),
                 ],
               ),
             ],
@@ -560,7 +560,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                   decoration: const InputDecoration(labelText: 'القطاع الرئيسي'),
                 ),
                 const SizedBox(height: 8),
-                const Text('سيُحفظ كمسودة. لا يتم نشره أو خصم الرصيد في هذه الخطوة.', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                const Text('سيُحفظ كمسودة.', style: TextStyle(color: Colors.white60, fontSize: 11)),
               ]),
             ),
             actions: [
@@ -663,7 +663,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                     onSelectionChanged: (v) => setDialog(() => publicationCurrency = v.first),
                   ),
                   const SizedBox(height: 5),
-                  const Text('الخصم والحصة ومفتاح الطلب تُتحقق خادميًا.', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  const Text('', style: TextStyle(color: Colors.white60, fontSize: 11)),
                 ]),
               ),
               actions: [
@@ -724,7 +724,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
                 selected: value == 'gems',
                 title: Text('${fee?['gems_cost'] ?? 0} جوهرة'),
               ),
-              const Text('الرسوم لا تُخصم إلا داخل معاملة الخادم.', style: TextStyle(color: Colors.white60, fontSize: 11)),
+              const Text('', style: TextStyle(color: Colors.white60, fontSize: 11)),
             ]),
           ),
           actions: [
@@ -742,7 +742,7 @@ class _GarmentServicesStoreTabState extends State<GarmentServicesStoreTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إدارة رسوم النشر'),
-        content: const Text('إدارة رسوم النشاط التجاري والمنتج وخدمة الألبسة موجودة ضمن لوحة سوق المنتجين → خدمات ورسوم، وتُحفظ عبر RPC المالك الخادمي.'),
+        content: const Text(''),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );

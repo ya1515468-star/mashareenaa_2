@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mashareena/core/services/media_upload_service.dart';
+import '../../../core/data/supabase_document_compat.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di/injection_container.dart';
 import '../../auth/presentation/providers/auth_provider.dart';

@@ -77,28 +77,41 @@ class _AdminUsersTabState extends ConsumerState<AdminUsersTab> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  FutureBuilder<Map<String, dynamic>?>( 
+                                  FutureBuilder<Map<String, dynamic>>(
                                     future: Supabase.instance.client
-                                        .from('profiles')
-                                        .select('address,last_ip,last_ip_at')
-                                        .eq('id', profile.uid)
-                                        .maybeSingle(),
+                                        .rpc('admin_get_user_details', params: {'p_user_id': profile.uid})
+                                        .then((value) => Map<String, dynamic>.from(value as Map)),
                                     builder: (context, snapshot) {
-                                      final row = snapshot.data;
-                                      if (row == null) return const SizedBox.shrink();
-                                      final address = row['address']?.toString().trim() ?? '';
-                                      final ip = row['last_ip']?.toString().trim() ?? '';
-                                      final ipAt = row['last_ip_at']?.toString().trim() ?? '';
-                                      if (address.isEmpty && ip.isEmpty) return const SizedBox.shrink();
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 10),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                                          children: [
-                                            if (address.isNotEmpty) Text('العنوان: $address'),
-                                            if (ip.isNotEmpty) Text(ipAt.isEmpty ? 'IP: $ip' : 'IP: $ip • $ipAt'),
-                                          ],
-                                        ),
+                                      if (snapshot.connectionState == ConnectionState.waiting) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: LinearProgressIndicator(),
+                                        );
+                                      }
+                                      if (snapshot.hasError || !snapshot.hasData) {
+                                        return const Text('تعذر تحميل بيانات الهوية الحالية للمستخدم');
+                                      }
+                                      final d = snapshot.data!;
+                                      final address = d['address']?.toString().trim() ?? '';
+                                      final city = d['city']?.toString().trim() ?? '';
+                                      final country = d['country']?.toString().trim() ?? '';
+                                      final ip = d['last_ip']?.toString().trim() ?? '';
+                                      final lat = d['latitude']?.toString().trim() ?? '';
+                                      final lon = d['longitude']?.toString().trim() ?? '';
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            'عنوان المستخدم: ${address.isEmpty ? 'غير مسجل' : address}',
+                                            style: const TextStyle(fontWeight: FontWeight.w800),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text('الموقع: ${country.isEmpty ? '—' : country} / ${city.isEmpty ? '—' : city}'),
+                                          const SizedBox(height: 4),
+                                          Text('IP: ${ip.isEmpty ? 'غير متاح' : ip}'),
+                                          if (lat.isNotEmpty || lon.isNotEmpty)
+                                            Text('الإحداثيات: ${lat.isEmpty ? '—' : lat} , ${lon.isEmpty ? '—' : lon}'),
+                                        ],
                                       );
                                     },
                                   ),

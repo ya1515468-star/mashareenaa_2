@@ -253,7 +253,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                   onPageChanged: _playIndex,
                   itemBuilder: (_, i) => _ReelPage(
                     reel: reels[i],
-                    name: names[reels[i]['owner_uid'].toString()] ?? 'منتج أزياء',
+                    name: names[reels[i]['owner_uid'].toString()] ?? 'مستخدم',
                     ownerUid: reels[i]['owner_uid']?.toString(),
                     liked: likes.contains(reels[i]['id'].toString()),
                     saved: saves.contains(reels[i]['id'].toString()),
@@ -436,7 +436,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
     final sectorRows = await repo.sectors();
     if (!mounted) return;
     if (sectorRows.isEmpty) {
-      _snack('لا توجد قطاعات فعالة على الخادم للنشر.');
+      _snack('لا توجد قطاعات فعالة للنشر.');
       return;
     }
     final title = TextEditingController();
@@ -473,7 +473,7 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
               TextField(controller: title, decoration: const InputDecoration(labelText: 'عنوان المنتج', prefixIcon: Icon(Icons.checkroom_outlined))),
               TextField(controller: desc, maxLines: 3, decoration: const InputDecoration(labelText: 'وصف المنتج، الخامة، القصة، الاستخدام')),
               Row(children: [Expanded(child: TextField(controller: durationField, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مدة الفيديو (ثانية)'))), const SizedBox(width: 8), Expanded(child: TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر')))]),
-              TextField(controller: city, decoration: const InputDecoration(labelText: 'المدينة / الورشة')),
+              TextField(controller: city, decoration: const InputDecoration(labelText: 'الالمدينة')),
               DropdownButtonFormField<String>(
                 initialValue: sectorRows.any((row) => row['sector_key']?.toString() == selectedSector) ? selectedSector : null,
                 decoration: const InputDecoration(
@@ -517,13 +517,13 @@ class _ProducerMarketPageState extends ConsumerState<ProducerMarketPage> with Wi
                 }
                 try {
                   Navigator.pop(ctx);
-                  _snack('جارٍ رفع الفيديو والتحقق خادميًا...');
+                  _snack('جارٍ رفع الفيديو...');
                   final vp = await repo.uploadReelVideo(video!);
                   String? cp;
                   if (cover != null) cp = await repo.uploadReelCover(cover!);
                   final tagList = tags.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
                   await repo.publishReel(title: selectedTitle, description: desc.text, duration: selectedDuration, videoPath: vp, coverPath: cp, allowDownload: allow, sector: selectedSector, priceLabel: price.text.isEmpty ? null : price.text, city: city.text.isEmpty ? null : city.text, tags: tagList, publicationCurrency: publicationCurrency);
-                  _snack('تم نشر المنتج بعد تحقق الخادم من العضوية والحصة والمدة والتكلفة.');
+                  _snack('تم نشر المنتج.');
                   await _load();
                 } catch (e) {
                   _snack(_friendly(e));
@@ -870,4 +870,4 @@ class _ReelPageState extends State<_ReelPage> {
 
 class _ActionButton extends StatelessWidget { final IconData icon; final String label; final VoidCallback onTap; final Color? color; const _ActionButton({required this.icon, required this.label, required this.onTap, this.color}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 9), child: Column(children: [IconButton.filledTonal(onPressed: onTap, icon: Icon(icon, color: color, size: 23)), Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])); }
 class _Pill extends StatelessWidget { final IconData icon; final String text; const _Pill({required this.icon, required this.text}); @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white12)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 12), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11))])); }
-class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('سوق الألبسة', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة للمنتجات والورش والمصانع والخامات والخدمات ضمن قطاع الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }
+class _EmptyMarket extends StatelessWidget { const _EmptyMarket(); @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(30), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Color(0xFFE8C86A), Color(0xFF5B3B14)]), boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .32), blurRadius: 34)]), child: const Icon(Icons.checkroom_rounded, size: 58, color: Colors.black)), const SizedBox(height: 18), const Text('سوق الألبسة', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900)), const SizedBox(height: 8), const Text('فيديوهات قصيرة لمنتجات وخدمات الألبسة.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70))]))); }

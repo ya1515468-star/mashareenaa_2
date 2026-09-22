@@ -89,7 +89,7 @@ class _GarmentHubPageState extends State<GarmentHubPage> {
       businesses = nextBusinesses;
       canPublish = nextCanPublish;
       serviceFee = nextFee;
-      error = failures.length == 3 ? 'تعذر تحميل البيانات من الخادم.' : null;
+      error = failures.length == 3 ? 'تعذر تحميل البيانات.' : null;
       loading = false;
     });
   }

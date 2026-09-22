@@ -55,7 +55,6 @@ import 'chat_thread_page.dart';
 import '../widgets/voice_recorder_sheet.dart';
 import '../../../store/presentation/profile_cosmetic_store_page.dart';
 import 'room_management_page.dart';
-import 'chat_rooms_page.dart';
 import 'chat_feature_settings_page.dart';
 import 'chat_notification_settings_page.dart';
 import 'directory_list_page.dart';
@@ -594,78 +593,54 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
 
   Future<void> _openBroadcastSuggestion() async {
     if (!_canManageBroadcast) return;
-    String text = '';
-    String type = 'idea';
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF171126),
-      showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+    final controller = TextEditingController();
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF171126),
+        showDragHandle: true,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('اقتراح / بث المنصة',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18)),
-              const SizedBox(height: 10),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'idea', label: Text('فكرة')),
-                  ButtonSegment(value: 'live', label: Text('بث مباشر')),
-                ],
-                selected: {type},
-                onSelectionChanged: (s) => setState(() => type = s.first),
-              ),
+              const Text('بث المنصة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
               const SizedBox(height: 10),
               TextField(
-                maxLines: 4,
+                controller: controller,
+                maxLines: 5,
+                autofocus: true,
                 style: const TextStyle(color: Colors.white),
-                onChanged: (value) => text = value,
                 decoration: const InputDecoration(
-                    hintText: 'اكتب الفكرة أو تفاصيل البث',
-                    hintStyle: TextStyle(color: Colors.white38)),
+                  hintText: 'اكتب رسالة البث',
+                  hintStyle: TextStyle(color: Colors.white38),
+                ),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: () async {
-                  final value = text.trim();
+                  final value = controller.text.trim();
                   if (value.isEmpty) return;
                   try {
-                    await _db.rpc('submit_platform_broadcast_request', params: {
-                      'p_request_type': type,
-                      'p_body': value,
-                      'p_room_id': _roomId,
-                    });
+                    await _db.rpc('publish_platform_broadcast', params: {'p_message': value});
+                    if (!mounted) return;
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    if (sheetContext.mounted) {
-                      ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        const SnackBar(content: Text('تم إرسال الطلب بنجاح')),
-                      );
-                    }
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر بث المنصة')));
                   } catch (e) {
-                    if (sheetContext.mounted) {
-                      ScaffoldMessenger.of(sheetContext).showSnackBar(
-                        SnackBar(content: Text('تعذر إرسال بث المنصة: $e')),
-                      );
-                    }
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyChatError(e))));
                   }
                 },
-                icon: Icon(type == 'live'
-                    ? Icons.live_tv_rounded
-                    : Icons.lightbulb_rounded),
-                label: const Text('إرسال للجهات المخولة'),
+                icon: const Icon(Icons.campaign_rounded),
+                label: const Text('نشر البث'),
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _openGamesPanel() async {
@@ -1845,7 +1820,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
               ),
             _VideoStyleBottomBar(
               showOptions: true,
-              onRooms: _openRooms,
               onOnline: _openOnline,
               onFriends: _openFriends,
               onChatStore: _openChatStore,
@@ -1920,30 +1894,6 @@ class _ChatLobbyPageState extends ConsumerState<ChatLobbyPage> {
         ),
       ),
     ),
-    );
-  }
-
-  Future<void> _openRooms() async {
-    final selectedRoomId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const ChatRoomsPage()),
-    );
-    if (!mounted || selectedRoomId == null || selectedRoomId.trim().isEmpty) {
-      return;
-    }
-
-    final normalizedRoomId = selectedRoomId.trim();
-    if (widget.onRoomSelected != null) {
-      // Main chat is hosted by HomeShell. Change only the room child so the
-      // global bottom navigation remains mounted and visible.
-      widget.onRoomSelected!(normalizedRoomId);
-      return;
-    }
-
-    // Backward-compatible fallback for any standalone ChatLobbyPage caller.
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ChatLobbyPage(roomId: normalizedRoomId),
-      ),
     );
   }
 
@@ -3970,7 +3920,6 @@ class _BottomItem extends StatelessWidget {
 class _VideoStyleBottomBar extends StatelessWidget {
   final bool showOptions;
   final VoidCallback onOptions;
-  final VoidCallback onRooms;
   final VoidCallback onOnline;
   final VoidCallback onFriends;
   final VoidCallback onChatStore;
@@ -3980,7 +3929,6 @@ class _VideoStyleBottomBar extends StatelessWidget {
   const _VideoStyleBottomBar({
     required this.showOptions,
     required this.onOptions,
-    required this.onRooms,
     required this.onOnline,
     required this.onFriends,
     required this.onChatStore,

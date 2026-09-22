@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/services/supabase_service.dart';
 
 class ProducerMarketRepository {
   ProducerMarketRepository._();
@@ -45,7 +46,7 @@ class ProducerMarketRepository {
     );
     final result = <String, String>{};
     for (final row in List<Map<String, dynamic>>.from(rows)) {
-      final name = (row['display_name'] ?? row['username'] ?? 'منتج أزياء')
+      final name = (row['username'] ?? row['display_name'] ?? 'منتج أزياء')
           .toString()
           .trim();
       result[row['id'].toString()] =
@@ -145,8 +146,8 @@ class ProducerMarketRepository {
     }
     if (bytes.isEmpty) throw Exception('الملف فارغ');
     if (bytes.length > 100 * 1024 * 1024) throw Exception('الملف يتجاوز الحد 100MB');
-    await _supabase.storage.from('producer-market-media').uploadBinary(path, bytes, fileOptions: FileOptions(upsert: false, contentType: _mimeFor(extension)));
-    return 'storage://producer-market-media/$path';
+    final stored = await SupabaseService.uploadBytesToBucket(bucket: 'producer-market-media', path: path, bytes: bytes, contentType: _mimeFor(extension), upsert: false, fileName: file.name);
+    return 'storage://producer-market-media/$stored';
   }
 
   String _mimeFor(String ext) => switch (ext.toLowerCase()) {
@@ -163,6 +164,59 @@ class ProducerMarketRepository {
         'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         _ => 'image/jpeg',
       };
+
+  Future<List<Map<String, dynamic>>> garmentServiceAds({String? sectorKey}) async =>
+      List<Map<String, dynamic>>.from(await _supabase.rpc('get_garment_service_ads', params: {'p_sector_key': sectorKey}));
+
+  Future<Map<String, dynamic>> publishGarmentServiceAd({
+    required String serviceKey,
+    required String sectorKey,
+    required String title,
+    required String description,
+    int? priceMinorUnits,
+    String currency = 'sham_cash',
+    String? unit,
+    int? minQty,
+    String? city,
+    String? address,
+    String? phone,
+    String? whatsapp,
+    List<String> images = const [],
+    Map<String, dynamic> specs = const {},
+    String publicationCurrency = 'points',
+  }) async =>
+      Map<String, dynamic>.from(await _supabase.rpc('publish_garment_service_ad', params: {
+        'p_service_key': serviceKey,
+        'p_sector_key': sectorKey,
+        'p_title': title,
+        'p_description': description,
+        'p_price_minor_units': priceMinorUnits,
+        'p_currency': currency,
+        'p_unit': unit,
+        'p_min_qty': minQty,
+        'p_city': city,
+        'p_address': address,
+        'p_phone': phone,
+        'p_whatsapp': whatsapp,
+        'p_images': images,
+        'p_specs': specs,
+        'p_publication_currency': publicationCurrency,
+        'p_request_id': _uuid.v4(),
+      }) as Map);
+
+  Future<Map<String, dynamic>> setGarmentServiceAdStatus(String adId, String status) async =>
+      Map<String, dynamic>.from(await _supabase.rpc('admin_set_garment_service_ad_status', params: {'p_ad_id': adId, 'p_status': status}) as Map);
+
+  Future<String> uploadGarmentServiceImage(PlatformFile file) async {
+    final ext = (file.extension ?? '').toLowerCase();
+    if (!const {'png','jpg','jpeg','webp'}.contains(ext)) throw Exception('INVALID_IMAGE');
+    final bytes = file.bytes ?? await file.xFile.readAsBytes();
+    if (bytes.isEmpty || bytes.length > 6 * 1024 * 1024) throw Exception('INVALID_IMAGE_SIZE');
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) throw Exception('AUTH_REQUIRED');
+    final storedPath = '$uid/${_uuid.v4()}.$ext';
+    return SupabaseService.uploadBytesToBucket(bucket: 'garment-service-media', path: storedPath, bytes: bytes, contentType: _mimeFor(ext), upsert: false, fileName: file.name);
+  }
 
   Future<Map<String, dynamic>> publishReel({required String title, required String description, required int duration, required String? videoPath, required String? coverPath, required bool allowDownload, required String sector, String? priceLabel, String? city, List<String> tags = const [], String publicationCurrency = 'points'}) async {
     final result = await _supabase.rpc('publish_producer_reel_paid', params: {
@@ -411,7 +465,7 @@ class ProducerMarketRepository {
     if (bytes.isEmpty) throw Exception('INVALID_IMAGE');
     if (bytes.length > 6 * 1024 * 1024) throw Exception('IMAGE_TOO_LARGE');
     final path = 'catalog/$uid/${_uuid.v4()}.$ext';
-    await _supabase.storage.from('chat-wallpapers').uploadBinary(path, bytes, fileOptions: FileOptions(upsert: false, contentType: _mimeFor(ext)));
+    await SupabaseService.uploadBytesToBucket(bucket: 'chat-wallpapers', path: path, bytes: bytes, contentType: _mimeFor(ext), upsert: false, fileName: file.name);
     return _supabase.storage.from('chat-wallpapers').getPublicUrl(path);
   }
 

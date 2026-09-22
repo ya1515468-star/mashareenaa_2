@@ -6,9 +6,6 @@ import '../../../core/data/supabase_document_compat.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di/injection_container.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
-import '../../gamification/domain/entities/points_package_entity.dart';
-import '../../gamification/presentation/providers/gamification_provider.dart';
-import '../../gamification/domain/usecases/purchase_points_package_usecase.dart';
 import '../domain/entities/store_item_entity.dart';
 import '../domain/usecases/store_usecases.dart';
 import '../presentation/store_features_tab.dart' show storeCatalogProvider;
@@ -21,8 +18,6 @@ class StoreAdminPanel extends ConsumerWidget {
     final uid = ref.watch(authControllerProvider).valueOrNull?.uid;
     final catalog = ref.watch(storeCatalogProvider).valueOrNull ??
         const <StoreItemEntity>[];
-    final packages = ref.watch(pointsPackagesProvider).valueOrNull ??
-        const <PointsPackageEntity>[];
     if (uid == null) return const SizedBox.shrink();
     return AlertDialog(
       title: const Text('إدارة متجر مالك المنصة'),
@@ -30,12 +25,11 @@ class StoreAdminPanel extends ConsumerWidget {
         width: 760,
         height: 620,
         child: DefaultTabController(
-          length: 3,
+          length: 2,
           child: Column(children: [
             const TabBar(tabs: [
               Tab(text: 'عناصر المتجر'),
               Tab(text: 'GIF متحركة'),
-              Tab(text: 'النقاط والجواهر')
             ]),
             Expanded(
                 child: TabBarView(children: [
@@ -129,41 +123,6 @@ class StoreAdminPanel extends ConsumerWidget {
                   ),
                 ],
               ),
-              Stack(
-                children: [
-                  ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 70),
-                    itemCount: packages.length,
-                    itemBuilder: (_, i) {
-                      final p = packages[i];
-                      return ListTile(
-                        leading:
-                            Text(p.icon, style: const TextStyle(fontSize: 24)),
-                        title: Text(p.title),
-                        subtitle: Text(
-                            '${p.pointsGranted} ${p.category.label} • ${p.price.formatted}'),
-                        trailing:
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(
-                              icon: const Icon(Icons.card_giftcard),
-                              onPressed: () => _giftPackage(context, p)),
-                          IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _editPackage(context, uid, p))
-                        ]),
-                      );
-                    },
-                  ),
-                  Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 8,
-                      child: FilledButton.icon(
-                          onPressed: () => _createPackage(context),
-                          icon: const Icon(Icons.add_box),
-                          label: const Text('إضافة حزمة جديدة'))),
-                ],
-              ),
             ])),
           ]),
         ),
@@ -203,41 +162,6 @@ class StoreAdminPanel extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('تم إهداء ${item.nameAr}')));
-    } on SupabaseFunctionException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message ?? 'تعذّر الإهداء')));
-    }
-  }
-
-  Future<void> _giftPackage(
-      BuildContext context, PointsPackageEntity package) async {
-    final c = TextEditingController();
-    final target = await showDialog<String>(
-        context: context,
-        builder: (d) => AlertDialog(
-                title: Text('إهداء ${package.title}'),
-                content: TextField(
-                    controller: c,
-                    decoration:
-                        const InputDecoration(labelText: 'UID المستلم')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(d),
-                      child: const Text('إلغاء')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(d, c.text.trim()),
-                      child: const Text('إهداء'))
-                ]));
-    c.dispose();
-    if (target == null || target.isEmpty) return;
-    try {
-      await SupabaseFunctionsCompat.instance
-          .httpsCallable('adminGrantPointsPackage')
-          .call({'targetUid': target, 'packageId': package.id});
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('تم إهداء ${package.title}')));
     } on SupabaseFunctionException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context)
@@ -442,99 +366,6 @@ class StoreAdminPanel extends ConsumerWidget {
     }
   }
 
-  Future<void> _createPackage(BuildContext context) async {
-    final id = TextEditingController();
-    final title = TextEditingController();
-    final qty = TextEditingController(text: '100');
-    final price = TextEditingController(text: '5.00');
-    var category = 'points';
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: const Text('إضافة حزمة نقاط/جواهر'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: id,
-                decoration: const InputDecoration(labelText: 'ID')),
-            TextField(
-                controller: title,
-                decoration: const InputDecoration(labelText: 'الاسم')),
-            TextField(
-                controller: qty,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الكمية')),
-            TextField(
-                controller: price,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'السعر شام كاش')),
-            DropdownButtonFormField<String>(
-              initialValue: category,
-              items: const [
-                DropdownMenuItem(value: 'points', child: Text('نقاط')),
-                DropdownMenuItem(value: 'gems', child: Text('جواهر')),
-                DropdownMenuItem(value: 'mixed', child: Text('مختلطة')),
-                DropdownMenuItem(value: 'bulk', child: Text('جملة')),
-                DropdownMenuItem(value: 'daily', child: Text('يومية'))
-              ],
-              onChanged: (value) =>
-                  setLocal(() => category = value ?? category),
-              decoration: const InputDecoration(labelText: 'الفئة'),
-            ),
-          ]),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(d, false),
-                child: const Text('إلغاء')),
-            FilledButton(
-                onPressed: () => Navigator.pop(d, true),
-                child: const Text('إنشاء')),
-          ],
-        ),
-      ),
-    );
-    final newId = id.text.trim();
-    final newTitle = title.text.trim();
-    final q = int.tryParse(qty.text.trim());
-    final pr = double.tryParse(price.text.trim());
-    id.dispose();
-    title.dispose();
-    qty.dispose();
-    price.dispose();
-    if (result != true ||
-        newId.isEmpty ||
-        newTitle.isEmpty ||
-        q == null ||
-        q <= 0 ||
-        pr == null ||
-        pr < 0) {
-      return;
-    }
-    try {
-      await SupabaseFunctionsCompat.instance
-          .httpsCallable('adminCreatePointsPackage')
-          .call({
-        'id': newId,
-        'title': newTitle,
-        'pointsGranted': q,
-        'priceMinorUnits': (pr * 100).round(),
-        'currency': 'shamCash',
-        'category': category,
-        'rarity': 'rare',
-        'icon': category == 'gems' ? '💎' : '⭐',
-        'isFeatured': true,
-      });
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تمت إضافة الحزمة')));
-    } on SupabaseFunctionException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'تعذّر إنشاء الحزمة')));
-    }
-  }
-
   Future<void> _createItem(BuildContext context, String uid) async {
     final id = TextEditingController();
     final name = TextEditingController();
@@ -688,41 +519,4 @@ class StoreAdminPanel extends ConsumerWidget {
         content: Text(r.fold((f) => f.message, (_) => 'تم تحديث السعر'))));
   }
 
-  Future<void> _editPackage(
-      BuildContext context, String uid, PointsPackageEntity p) async {
-    final controller =
-        TextEditingController(text: p.price.amount.toStringAsFixed(2));
-    final result = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-                title: Text('سعر ${p.title}'),
-                content: TextField(
-                    controller: controller,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'السعر')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text('إلغاء')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('حفظ'))
-                ]));
-    if (result != true) {
-      controller.dispose();
-      return;
-    }
-    final amount = double.tryParse(controller.text.trim());
-    controller.dispose();
-    if (amount == null || amount < 0) return;
-    final r = await sl<UpdatePointsPackagePriceUseCase>().call(
-        packageId: p.id,
-        priceMinorUnits: (amount * 100).round(),
-        enabled: true,
-        requestedByUid: uid);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(r.fold((f) => f.message, (_) => 'تم تحديث السعر'))));
-  }
 }

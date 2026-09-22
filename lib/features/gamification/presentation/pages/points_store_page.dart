@@ -1,262 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-
-enum StoreFeatureType {
-  glow,
-  frame,
-  background,
-}
+import '../../../../core/services/media_upload_service.dart';
 
 class PointsStorePage extends StatefulWidget {
   const PointsStorePage({super.key});
-  @override
-  State<PointsStorePage> createState() => _PointsStorePageState();
+  @override State<PointsStorePage> createState() => _PointsStorePageState();
 }
-
-class _PointsStorePageState extends State<PointsStorePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-  late Future<_PackageCatalog> _future;
-  final _uuid = const Uuid();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _future = _load();
+class _PointsStorePageState extends State<PointsStorePage> {
+  final _db=Supabase.instance.client;
+  final _media=MediaUploadService(bucket:'currency-package-media');
+  List<Map<String,dynamic>> _rows=[]; bool _owner=false,_loading=true; String _filter='all';
+  @override void initState(){super.initState();_load();}
+  Future<void> _load() async {
+    try{
+      final owner=await _db.rpc('is_my_platform_owner')==true;
+      final rows=await _db.from('currency_packages').select('id,package_type,title,description,amount,bonus_amount,price_minor_units,price_currency,image_url,icon_key,enabled,featured,sort_order,created_at').order('sort_order').order('created_at',ascending:false);
+      if(!mounted)return; setState((){_owner=owner;_rows=List<Map<String,dynamic>>.from(rows);_loading=false;});
+    }catch(e){if(!mounted)return;setState(()=>_loading=false);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_friendly(e))));}
   }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
+  List<Map<String,dynamic>> get _visible=>_rows.where((r)=> (_owner||r['enabled']==true)&&(_filter=='all'||r['package_type']==_filter)).toList();
+  Future<void> _buy(Map<String,dynamic> r) async {
+    try{await _db.rpc('purchase_currency_package',params:{'p_package_id':r['id'],'p_request_id':const Uuid().v4()});if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم شراء الباقة')));await _load();}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_friendly(e))));}
   }
-
-  Future<_PackageCatalog> _load() async {
-    final client = Supabase.instance.client;
-    final results = await Future.wait([
-      client
-          .from('points_packages')
-          .select(
-              'id,title,description,points_granted,bonus_points,price_minor_units,currency,icon,image_url,enabled,is_featured,sort_order')
-          .eq('enabled', true)
-          .order('sort_order')
-          .order('price_minor_units'),
-      client
-          .from('currency_packages')
-          .select(
-              'id,title,description,amount,bonus_amount,price_minor_units,price_currency,image_url,icon_key,enabled,featured,sort_order')
-          .eq('package_type', 'gems')
-          .eq('enabled', true)
-          .order('sort_order')
-          .order('price_minor_units'),
-    ]);
-    return _PackageCatalog(
-      points: List<Map<String, dynamic>>.from(results[0] as List),
-      gems: List<Map<String, dynamic>>.from(results[1] as List),
-    );
+  Future<void> _toggle(Map<String,dynamic> r) async {
+    try{await _db.rpc('admin_set_currency_package_enabled',params:{'p_id':r['id'],'p_enabled':r['enabled']!=true});await _load();}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_friendly(e))));}
   }
-
-  Future<void> _purchase(String functionName, String id) async {
-    try {
-      await Supabase.instance.client.rpc(
-        functionName,
-        params: {'p_package_id': id, 'p_request_id': _uuid.v4()},
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تمت العملية بنجاح')),
-      );
-      setState(() => _future = _load());
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر إتمام العملية: $e')),
-      );
-    }
+  Future<void> _edit([Map<String,dynamic>? r]) async {
+    if(!_owner)return;
+    final title=TextEditingController(text:r?['title']?.toString()??''),desc=TextEditingController(text:r?['description']?.toString()??''),
+      amount=TextEditingController(text:r?['amount']?.toString()??'0'),bonus=TextEditingController(text:r?['bonus_amount']?.toString()??'0'),
+      price=TextEditingController(text:r?['price_minor_units']?.toString()??'0'),sort=TextEditingController(text:r?['sort_order']?.toString()??'0');
+    String type=r?['package_type']?.toString()??'points'; String? image=r?['image_url']?.toString(); bool enabled=r?['enabled']!=false,featured=r?['featured']==true;
+    try{
+      await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
+        title:Text(r==null?'إضافة باقة':'تعديل باقة'),
+        content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          DropdownButtonFormField<String>(initialValue:type,items:const[DropdownMenuItem(value:'points',child:Text('النقاط ⭐')),DropdownMenuItem(value:'gems',child:Text('الجواهر 💎'))],onChanged:(v)=>setDialog(()=>type=v??type),decoration:const InputDecoration(labelText:'النوع')),
+          TextField(controller:title,decoration:const InputDecoration(labelText:'اسم الباقة')),
+          TextField(controller:desc,maxLines:2,decoration:const InputDecoration(labelText:'الوصف')),
+          Row(children:[Expanded(child:TextField(controller:amount,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'الكمية'))),const SizedBox(width:8),Expanded(child:TextField(controller:bonus,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'الإضافي')))]),
+          TextField(controller:price,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'السعر بالشام كاش')),
+          TextField(controller:sort,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'الترتيب')),
+          OutlinedButton.icon(icon:const Icon(Icons.upload_rounded),label:Text(image==null?'رفع صورة':'استبدال الصورة'),onPressed:() async{
+            final f=await ImagePicker().pickImage(source:ImageSource.gallery); if(f==null)return;
+            try{final uid=_db.auth.currentUser?.id;if(uid==null)throw StateError('AUTH_REQUIRED');final bytes=await f.readAsBytes();final path=await _media.uploadBytes(bytes:bytes,fileName:f.name,folder:'packages',uid:uid);setDialog(()=>image=path);}
+            catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}
+          }),
+          if(image!=null&&image!.isNotEmpty)Image.network(image!,height:88,width:88,fit:BoxFit.cover),
+          SwitchListTile(value:enabled,onChanged:(v)=>setDialog(()=>enabled=v),title:const Text('نشطة')),
+          SwitchListTile(value:featured,onChanged:(v)=>setDialog(()=>featured=v),title:const Text('مميزة')),
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('إلغاء')),
+          FilledButton(onPressed:() async{
+            try{
+              await _db.rpc('admin_upsert_currency_package',params:{
+                'p_id':r?['id']?.toString()??(type+'_'+DateTime.now().microsecondsSinceEpoch.toString()),
+                'p_package_type':type,'p_title':title.text.trim(),'p_description':desc.text.trim(),
+                'p_amount':int.tryParse(amount.text)??0,'p_bonus_amount':int.tryParse(bonus.text)??0,'p_price_minor_units':int.tryParse(price.text)??0,
+                'p_price_currency':'sham_cash','p_image_url':image,'p_icon_key':type=='gems'?'💎':'⭐','p_enabled':enabled,'p_featured':featured,'p_sort_order':int.tryParse(sort.text)??0,
+              });
+              if(ctx.mounted)Navigator.pop(ctx); await _load();
+            }catch(e){if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(_friendly(e))));}
+          },child:const Text('حفظ')),
+        ],
+      )));
+    }finally{for(final c in [title,desc,amount,bonus,price,sort]){c.dispose();}}
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('متجر النقاط والجواهر'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(icon: Icon(Icons.star_rounded), text: 'النقاط'),
-            Tab(icon: Icon(Icons.diamond_rounded), text: 'الجواهر'),
-          ],
-        ),
-      ),
-      body: FutureBuilder<_PackageCatalog>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'تعذر تحميل الباقات: ${snapshot.error}',
-              ),
-            );
-          }
-          final data =
-              snapshot.data ?? const _PackageCatalog(points: [], gems: []);
-          return TabBarView(
-            controller: _tabs,
-            children: [
-              _PackageGrid(
-                rows: data.points,
-                kind: _PackageKind.points,
-                onPurchase: (id) => _purchase('purchase_points_package', id),
-              ),
-              _PackageGrid(
-                rows: data.gems,
-                kind: _PackageKind.gems,
-                onPurchase: (id) => _purchase('purchase_currency_package', id),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+  String _friendly(Object e){final s=e.toString().replaceFirst('PostgrestException(message: ','').replaceFirst(RegExp(r', code:.*'),'').replaceAll('Exception: ','');if(s.contains('FORBIDDEN'))return 'لا تملك صلاحية إدارة الباقات.';if(s.contains('INSUFFICIENT'))return 'الرصيد غير كافٍ.';return s;}
+  @override Widget build(BuildContext context){
+    final rows=_visible;
+    return Scaffold(appBar:AppBar(title:const Text('متجر النقاط والجواهر'),actions:[IconButton(onPressed:_load,icon:const Icon(Icons.refresh_rounded)),if(_owner)IconButton(onPressed:()=>_edit(),icon:const Icon(Icons.add_rounded))]),
+      body:_loading?const Center(child:CircularProgressIndicator()):Column(children:[
+        Padding(padding:const EdgeInsets.all(10),child:SegmentedButton<String>(segments:const[ButtonSegment(value:'all',label:Text('الكل')),ButtonSegment(value:'points',label:Text('النقاط ⭐')),ButtonSegment(value:'gems',label:Text('الجواهر 💎'))],selected:{_filter},onSelectionChanged:(v)=>setState(()=>_filter=v.first))),
+        Expanded(child:rows.isEmpty?const Center(child:Text('لا توجد باقات متاحة.')):ListView.separated(padding:const EdgeInsets.all(12),itemCount:rows.length,separatorBuilder:(_,__)=>const SizedBox(height:10),itemBuilder:(_,i)=>_Card(row:rows[i],owner:_owner,buy:()=>_buy(rows[i]),edit:()=>_edit(rows[i]),toggle:()=>_toggle(rows[i])))),
+      ]));
   }
 }
-
-enum _PackageKind { points, gems }
-
-class _PackageCatalog {
-  final List<Map<String, dynamic>> points;
-  final List<Map<String, dynamic>> gems;
-  const _PackageCatalog({required this.points, required this.gems});
-}
-
-class _PackageGrid extends StatelessWidget {
-  final List<Map<String, dynamic>> rows;
-  final _PackageKind kind;
-  final ValueChanged<String> onPurchase;
-
-  const _PackageGrid({
-    required this.rows,
-    required this.kind,
-    required this.onPurchase,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) {
-      return Center(
-        child: Text(
-          kind == _PackageKind.points
-              ? 'لا توجد باقات نقاط متاحة حاليًا.'
-              : 'لا توجد باقات جواهر متاحة حاليًا.',
-        ),
-      );
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: MediaQuery.sizeOf(context).width >= 1100 ? 4 : 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: .78,
-      ),
-      itemCount: rows.length,
-      itemBuilder: (_, index) {
-        final row = rows[index];
-        final amount =
-            ((row[kind == _PackageKind.points ? 'points_granted' : 'amount']
-                        as num?)
-                    ?.toInt() ??
-                0);
-        final bonus =
-            ((row[kind == _PackageKind.points ? 'bonus_points' : 'bonus_amount']
-                        as num?)
-                    ?.toInt() ??
-                0);
-        final title = row['title']?.toString() ?? '';
-        final image = row['image_url']?.toString();
-        final icon =
-            row[kind == _PackageKind.points ? 'icon' : 'icon_key']?.toString();
-        final price = ((row['price_minor_units'] as num?)?.toInt() ?? 0);
-        return Card(
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  child: image != null && image.isNotEmpty
-                      ? Image.network(
-                          image,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              _FallbackIcon(kind: kind, icon: icon),
-                        )
-                      : _FallbackIcon(kind: kind, icon: icon),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                '+${amount + bonus} ${kind == _PackageKind.points ? 'نقطة' : 'جوهرة'}',
-                style: TextStyle(
-                  color: kind == _PackageKind.points
-                      ? Colors.amber
-                      : Colors.cyanAccent,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              if (bonus > 0)
-                Text(
-                  'الأساسي $amount + مكافأة $bonus',
-                  style: const TextStyle(fontSize: 10, color: Colors.white60),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => onPurchase(row['id'].toString()),
-                    child: Text('$price شام كاش'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+class _Card extends StatelessWidget{
+  final Map<String,dynamic> row; final bool owner; final VoidCallback buy,edit,toggle;
+  const _Card({required this.row,required this.owner,required this.buy,required this.edit,required this.toggle});
+  @override Widget build(BuildContext context){
+    final gems=row['package_type']=='gems',enabled=row['enabled']==true,amount=(row['amount'] as num?)?.toInt()??0,bonus=(row['bonus_amount'] as num?)?.toInt()??0,image=row['image_url']?.toString(),icon=row['icon_key']?.toString()??(gems?'💎':'⭐');
+    return Card(child:ListTile(leading:SizedBox(width:58,height:58,child:ClipRRect(borderRadius:BorderRadius.circular(10),child:image!=null&&image.isNotEmpty?Image.network(image,fit:BoxFit.cover,errorBuilder:(_,__,___)=>_Icon(icon)):_Icon(icon))),
+      title:Text(row['title']?.toString()??'باقة'),subtitle:Text((amount+bonus).toString()+' '+(gems?'جوهرة':'نقطة')+' • '+(row['price_minor_units']??0).toString()+' شام كاش'),
+      trailing:owner?Wrap(children:[IconButton(onPressed:edit,icon:const Icon(Icons.edit)),IconButton(onPressed:toggle,icon:Icon(enabled?Icons.visibility_off_outlined:Icons.visibility_outlined))]):(enabled?FilledButton(onPressed:buy,child:const Text('شراء')):const SizedBox.shrink())));
   }
 }
-
-class _FallbackIcon extends StatelessWidget {
-  final _PackageKind kind;
-  final String? icon;
-  const _FallbackIcon({required this.kind, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    if (icon != null && icon!.trim().isNotEmpty) {
-      return Text(icon!, style: const TextStyle(fontSize: 70));
-    }
-    return Icon(
-      kind == _PackageKind.points ? Icons.stars_rounded : Icons.diamond_rounded,
-      size: 72,
-      color: kind == _PackageKind.points ? Colors.amber : Colors.cyanAccent,
-    );
-  }
-}
+class _Icon extends StatelessWidget{final String text;const _Icon(this.text);@override Widget build(BuildContext c)=>Center(child:Text(text,style:const TextStyle(fontSize:28)));}

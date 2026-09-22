@@ -5,6 +5,11 @@ on:
       - build/arm64-20260922
 permissions:
   contents: read
+
+concurrency:
+  group: mashareenaa-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
